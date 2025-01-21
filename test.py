@@ -1,35 +1,41 @@
-import chromadb
+from environments.environment import Environment
+from utils.task_primitives import EnvironmentConfiguration
+import time
+import pybullet as p
 
+if __name__ == "__main__":
+    env = Environment(
+        "environments/assets",
+        disp=True,
+        shared_memory=False,
+        hz=480,
+        record_cfg={
+            "save_video": False,
+            "save_video_path": "${data_dir}/${task}-cap/videos/",
+            "add_text": True,
+            "add_task_text": True,
+            "fps": 20,
+            "video_height": 640,
+            "video_width": 720,
+        },
+    )
+    from tasks.many_blocks import ManyBlocksTask
+    from utils.task_primitives import Task
 
-# client = chromadb.PersistentClient(path=".")
-# collection = client.get_or_create_collection(name="test")
-# collection.add(
-#     documents=[
-#         "This is a document about pineapple",
-#         "This is a document about oranges",
-#     ],
-#     ids=["id1", "id2"],
-# )
+    task = Task()
+    config = EnvironmentConfiguration.from_path("config.pkl")
+    print(config)
 
-# results = collection.query(
-#     query_texts=[
-#         "This is a query document about hawaii"
-#     ],  # Chroma will embed this for you
-#     n_results=5,  # how many results to return
-# )
-# print(results)
+    task.restoreFromConfig(env, config)
 
+    # env.set_task(task)
+    # env.reset()
 
-from agents.skill import SkillManager
-import inspect
+    # for i in range(1000):
+    #     p.stepSimulation()
 
+    # config = env.task.getCurrentConfiguration(env)
 
-def hello():
-    print("whatsup")
+    # config.dump("config.pkl")
 
-
-skill_manager = SkillManager(ckpt_dir=".")
-
-skill_manager.add_skill_to_library("hello", inspect.getsource(hello), "say hello")
-
-print(skill_manager.all_skills)
+    time.sleep(10)

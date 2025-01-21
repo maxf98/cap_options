@@ -1,11 +1,38 @@
 from environments.task import Task
-from core_types import TaskObject
+from utils.core_types import TaskObject, Pose
+from environments.environment import Environment
+from utils.core_primitives import _from_pybullet_pose, _to_pybullet_pose
 import pybullet as p
 
-import general_utils as utils
+import pickle
+import time
+import random
+
+import utils.general_utils as utils
 
 
-class TaskBuilder(Task):
+class EnvironmentConfiguration:
+    def __init__(self, config: list[TaskObject, Pose] = []):
+        self.config = config
+
+    def dump(self, path):
+        with open(path, "wb") as file:
+            pickle.dump(self.config, file)
+    
+    @classmethod 
+    def from_path(cls, path) -> "EnvironmentConfiguration":
+        with open(path, "rb") as file:
+            loaded_config = pickle.load(file)
+        return EnvironmentConfiguration(loaded_config)
+    
+    def __str__(self):
+        ret = ""
+        for obj, pose in self.config:
+            ret += (f"{obj.description}: {pose.position} {pose.rotation} \n")
+        return ret
+
+
+class Task(Task):
     """
     Provides a simple API for setting up the environment in a chat-based manner
     For example, adding different objects in different places
@@ -14,24 +41,43 @@ class TaskBuilder(Task):
     """
 
     def __init__(self):
-        pass
+        super().__init__()
+        self.taskObjects = list[TaskObject]()
 
-    def addBlockAtRandomPosition(
-        self, env, color, block_size=(0.04, 0.04, 0.04)
-    ) -> TaskObject:
+    def add_many_blocks(self, env: Environment, num_blocks: int=20):
+        for _ in range(num_blocks):
+            self.add_block(env, color=random.choice(list(utils.COLORS.keys())))
+
+        # wait for blocks to settle...
+        for _ in range(500):
+            p.stepSimulation()
+            time.sleep(1 / 400)
+
+    def add_block(self, env: Environment, color: str, size: tuple[float, float, float] = (0.04, 0.04, 0.04), pose: Pose = None):
         block_urdf = "block/block.urdf"
 
-        block_pose = self.get_random_pose(env, block_size)
-        sized_block_urdf = self.fill_template(block_urdf, {"DIM": block_size})
+        block_pose = self.get_random_pose(env, size) if pose is None else _to_pybullet_pose(pose)
+
+        sized_block_urdf = self.fill_template(block_urdf, {"DIM": size})
         block_id = env.add_object(sized_block_urdf, block_pose)
-        p.changeVisualShape(block_id, -1, rgbaColor=utils.COLORS["red"] + [1])
+        p.changeVisualShape(block_id, -1, rgbaColor=utils.COLORS[color] + [1])
 
-        task_obj = TaskObject(
-            objectType="block",
-            color=color,
-            id=block_id,
-            category="rigid",
-            size=block_size,
-        )
+        task_obj = TaskObject(objectType="block", color=color, id=block_id, category="rigid", size=size)
 
-        return TaskObject
+        self.taskObjects.append(task_obj)
+
+    def getCurrentConfiguration(self, env: Environment) -> EnvironmentConfiguration:
+        """gets all the objects and their properties, so we can reinitialise the scene... """
+        config = []
+        for obj in self.taskObjects:
+            pose = _from_pybullet_pose(env.get_object_pose(obj.id))
+            config.append((obj, pose))
+        
+        storable = EnvironmentConfiguration(config)
+        return storable
+    
+    def restoreFromConfig(self, env: Environment, config: EnvironmentConfiguration):
+        for (obj, pose) in config.config:
+            if obj.objectType == "block":
+                print(obj.color, obj.size)
+                self.add_block(env, obj.color, obj.size, pose)

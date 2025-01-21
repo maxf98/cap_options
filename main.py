@@ -62,7 +62,7 @@ class CapOptioner:
 
     def setup_code_environment(self) -> Environment:
         env = Environment(
-            "/Users/maxfest/vscode/thesis/thesis/environments/assets",
+            "environments/assets",
             disp=True,
             shared_memory=False,
             hz=480,

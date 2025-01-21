@@ -10,3 +10,19 @@ and for experience distillation by generating skills
 
 and for retrieval of few-shot examples
 """
+
+import pickle
+from enum import Enum
+
+
+class ExperienceTrace:
+    def __init__(self, env_task):
+        self.env_task = env_task
+        self.messages = []
+        self.is_success = False
+    
+    def addAttempt(code_attempt, feedback):
+        
+
+    
+

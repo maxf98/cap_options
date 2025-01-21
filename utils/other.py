@@ -1,3 +1,30 @@
+
+
+# @dataclass
+# class AABBBoundingBox:
+#     """Axis-aligned bounding box, represented by two points"""
+
+#     minPoint: Point3D
+#     maxPoint: Point3D
+
+#     @property
+#     def size(self) -> tuple[float, float, float]:
+#         """return size of bounding box as tuple of (width, depth, height)"""
+#         return (
+#             abs(self.minPoint.x - self.maxPoint.x),
+#             abs(self.minPoint.y - self.maxPoint.y),
+#             abs(self.minPoint.z - self.maxPoint.z),
+#         )
+
+# def get_bbox(self, obj: TaskObject) -> AABBBoundingBox:
+#     """gets the bounding box of an object"""
+#     aabb_min, aabb_max = self.env.getBoundingBox(obj.id)
+
+#     return AABBBoundingBox(Point3D.from_xyz(aabb_min), Point3D.from_xyz(aabb_max))
+
+
+
+
 # def fgen_lmp(f_name, f_sig, all_vars, f_description=None):
 #     messages = [{"role": "system", "content": FGEN_PROMPT}, {"role": "user", "content": f"write the function code for {f_name} with signature {f_sig}"}]
 #     response = query_llm(messages)

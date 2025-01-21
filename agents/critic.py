@@ -3,8 +3,8 @@ from prompts.base_prompt import (
     critic_system_prompt,
     explain_failure_prompt,
 )
-from utils.llm_utils import query_llm, parse_code_response
-from utils.cap_utils import encode_image, code_exec_with_bug_fix
+from utils.llm_utils import query_llm, parse_code_response, encode_image
+from utils.cap_utils import code_exec_with_bug_fix
 
 
 class Critic:
