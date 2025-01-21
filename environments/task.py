@@ -18,12 +18,13 @@ from environments.grippers import Spatula
 from environments.grippers import Suction
 from utils import general_utils as utils
 
+
 class Task:
     """Base Task class."""
 
     def __init__(self):
         self.ee = Suction
-        self.mode = 'train'
+        self.mode = "train"
         self.task_difficulty_level = "easy"
         self.input_manipulate_order = False
 
@@ -33,7 +34,7 @@ class Task:
         self.rng = None
 
         # Evaluation epsilons (for pose evaluation metric).
-        self.pos_eps = 0.05 #0.01
+        self.pos_eps = 0.05  # 0.01
         self.rot_eps = np.deg2rad(15)
         self.height_eps = 0.015
         self.consider_z_in_match = True
@@ -61,10 +62,26 @@ class Task:
         self.seed = 0
 
         self.kit = {
-            'R': 0, 'A': 1, 'triangle': 2, 'square': 3, 'cross': 4,
-            'T': 5, 'diamond': 6, 'pentagon': 7, 'rectangle': 8, 'clubs': 9,
-            'star': 10, 'circle': 11, 'G': 12, 'V': 13, 'E': 14,
-            'L': 15, 'O': 16, 'hexagon': 17, 'heart': 18, 'M': 19
+            "R": 0,
+            "A": 1,
+            "triangle": 2,
+            "square": 3,
+            "cross": 4,
+            "T": 5,
+            "diamond": 6,
+            "pentagon": 7,
+            "rectangle": 8,
+            "clubs": 9,
+            "star": 10,
+            "circle": 11,
+            "G": 12,
+            "V": 13,
+            "E": 14,
+            "L": 15,
+            "O": 16,
+            "hexagon": 17,
+            "heart": 18,
+            "M": 19,
         }
 
         self.train_set = np.arange(0, 14)
@@ -82,7 +99,7 @@ class Task:
         center_pos = (
             self.bounds[0][0] + self.x_length / 2,
             self.bounds[1][0] + self.y_length / 2,
-            height
+            height,
         )
         # theta = np.random.rand() * 2 * np.pi
         theta = 0
@@ -90,59 +107,68 @@ class Task:
         self.homogeneous = False
 
         # Define absolute position
-        top_left_area = np.array([
-            [self.bounds[0, 0], center_pos[0]],
-            [self.bounds[1, 0], center_pos[1]],
-        ])
-        top_right_area = np.array([
-            [self.bounds[0, 0], center_pos[0]],
-            [center_pos[1], self.bounds[1, 1]],
-        ])
-        bottom_left_area = np.array([
-            [center_pos[0], self.bounds[0, 1]],
-            [self.bounds[1, 0], center_pos[1]],
-        ])
-        bottom_right_area = np.array([
-            [center_pos[0], self.bounds[0, 1]],
-            [center_pos[1], self.bounds[1, 1]],
-        ])
+        top_left_area = np.array(
+            [
+                [self.bounds[0, 0], center_pos[0]],
+                [self.bounds[1, 0], center_pos[1]],
+            ]
+        )
+        top_right_area = np.array(
+            [
+                [self.bounds[0, 0], center_pos[0]],
+                [center_pos[1], self.bounds[1, 1]],
+            ]
+        )
+        bottom_left_area = np.array(
+            [
+                [center_pos[0], self.bounds[0, 1]],
+                [self.bounds[1, 0], center_pos[1]],
+            ]
+        )
+        bottom_right_area = np.array(
+            [
+                [center_pos[0], self.bounds[0, 1]],
+                [center_pos[1], self.bounds[1, 1]],
+            ]
+        )
         self.area_boundary = {
             "center": {
                 "x_start": center_pos[0],
                 "x_end": center_pos[0],
                 "y_start": center_pos[1],
-                "y_end": center_pos[1]
+                "y_end": center_pos[1],
             },
             "top left area": {
                 "x_start": top_left_area[0, 0],
                 "x_end": top_left_area[0, 1],
                 "y_start": top_left_area[1, 0],
-                "y_end": top_left_area[1, 1]
+                "y_end": top_left_area[1, 1],
             },
             "top right area": {
                 "x_start": top_right_area[0, 0],
                 "x_end": top_right_area[0, 1],
                 "y_start": top_right_area[1, 0],
-                "y_end": top_right_area[1, 1]
+                "y_end": top_right_area[1, 1],
             },
             "bottom left area": {
                 "x_start": bottom_left_area[0, 0],
                 "x_end": bottom_left_area[0, 1],
                 "y_start": bottom_left_area[1, 0],
-                "y_end": bottom_left_area[1, 1]
+                "y_end": bottom_left_area[1, 1],
             },
             "bottom right area": {
                 "x_start": bottom_right_area[0, 0],
                 "x_end": bottom_right_area[0, 1],
                 "y_start": bottom_right_area[1, 0],
-                "y_end": bottom_right_area[1, 1]
-            }
+                "y_end": bottom_right_area[1, 1],
+            },
         }
 
     def reset(self, env):  # pylint: disable=unused-argument
         if not self.assets_root:
-            raise ValueError('assets_root must be set for task, '
-                             'call set_assets_root().')
+            raise ValueError(
+                "assets_root must be set for task, " "call set_assets_root()."
+            )
         self.goals = []
         self.lang_goals = []
         self.progress = 0  # Task progression metric in range [0, 1].
@@ -151,16 +177,16 @@ class Task:
 
     def additional_reset(self):
         # Additional changes to make the environment adaptable
-        if 'bowl' in self.lang_template:
+        if "bowl" in self.lang_template:
             # IMPORTANT: increase position tolerance for bowl placement
             self.pos_eps = 0.05
 
-        if 'piles' in self.lang_template:
+        if "piles" in self.lang_template:
             # IMPORTANT: Define the primitive to be push and ee to be spatula for tasks involving piles
             self.ee = Spatula
             self.primitive = primitives.push
 
-        if 'rope' in self.lang_template:
+        if "rope" in self.lang_template:
             self.primitive = primitives.PickPlace(height=0.02, speed=0.001)
             self.pos_eps = 0.02
 
@@ -170,7 +196,7 @@ class Task:
 
     def oracle(self, env):
         """Oracle agent."""
-        OracleAgent = collections.namedtuple('OracleAgent', ['act'])
+        OracleAgent = collections.namedtuple("OracleAgent", ["act"])
 
         def act(obs, info):  # pylint: disable=unused-argument
             """Calculate action."""
@@ -185,7 +211,8 @@ class Task:
                 for j, targ in enumerate(targs):
                     # add default orientation if missing
                     if len(targ) == 3 and (
-                            type(targs[j][0]) is float or type(targs[j][0]) is np.float32):
+                        type(targs[j][0]) is float or type(targs[j][0]) is np.float32
+                    ):
                         targs[j] = (targs[j], (0, 0, 0, 1))
 
                 # Match objects to targets without replacement.
@@ -204,7 +231,10 @@ class Task:
                         targets_i = np.argwhere(matches[i, :]).reshape(-1)
                         for j in targets_i:
                             if self.is_match(
-                                    pose, targs[j], symmetry, consider_z=self.consider_z_in_match
+                                pose,
+                                targs[j],
+                                symmetry,
+                                consider_z=self.consider_z_in_match,
                             ):
                                 matches[i, :] = 0
                                 matches[:, j] = 0
@@ -221,11 +251,13 @@ class Task:
                     object_id, (symmetry, _) = objs[i]
                     xyz, rot = p.getBasePositionAndOrientation(object_id)
                     rot = utils.quatXYZW_to_eulerXYZ(rot)
-                    rot = utils.eulerXYZ_to_quatXYZW((0,0,rot[2]))
+                    rot = utils.eulerXYZ_to_quatXYZW((0, 0, rot[2]))
                     targets_i = np.argwhere(matches[i, :]).reshape(-1)
                     if len(targets_i) > 0:  # pylint: disable=g-explicit-length-test
                         targets_xyz = np.float32([targs[j][0] for j in targets_i])
-                        dists = np.linalg.norm(targets_xyz - np.float32(xyz).reshape(1, 3), axis=1)
+                        dists = np.linalg.norm(
+                            targets_xyz - np.float32(xyz).reshape(1, 3), axis=1
+                        )
                         nn = np.argmin(dists)
                         # add the nearest target object for each source object
                         nn_dists.append(dists[nn])
@@ -258,10 +290,10 @@ class Task:
                 if pick_mask is None or np.sum(pick_mask) == 0:
                     self.goals = []
                     self.lang_goals = []
-                    print('Object for pick is not visible. Skipping demonstration.')
+                    print("Object for pick is not visible. Skipping demonstration.")
                     return
 
-                '''
+                """
                 if self.generate_instruction_for_every_step:
                     pick_obj_names, place_obj_names = self.pick_obj_names[0], self.place_obj_names[0]
                     step_instruction = "pick up the {pick_obj} and place it on the {place_obj}."
@@ -281,7 +313,7 @@ class Task:
                     img_save_name = (f"{self.step_save_path}/{self.task_name}/"
                                      f"{self.mode}/{self.seed}/{len(self.goals)}_{pick_i}.png")
                     plt.imsave(img_save_name, color)
-                '''
+                """
 
                 # Get picking pose.
                 pick_prob = np.float32(pick_mask)
@@ -292,9 +324,12 @@ class Task:
                 pick_pose = (np.asarray(pick_pos), np.asarray(rot))
 
                 # Get placing pose.
-                targ_pose = targs[nn_targets[pick_i]]  # pylint: disable=undefined-loop-variable
+                targ_pose = targs[
+                    nn_targets[pick_i]
+                ]  # pylint: disable=undefined-loop-variable
                 obj_pose = p.getBasePositionAndOrientation(
-                    objs[pick_i][0])  # pylint: disable=undefined-loop-variable
+                    objs[pick_i][0]
+                )  # pylint: disable=undefined-loop-variable
                 if not self.sixdof:
                     obj_euler = utils.quatXYZW_to_eulerXYZ(obj_pose[1])
                     obj_quat = utils.eulerXYZ_to_quatXYZW((0, 0, obj_euler[2]))
@@ -304,7 +339,8 @@ class Task:
                 pick_to_obj = utils.invert(obj_to_pick)
 
                 if len(targ_pose) == 3 and (
-                        type(targ_pose[0]) is float or type(targ_pose[0]) is np.float32):
+                    type(targ_pose[0]) is float or type(targ_pose[0]) is np.float32
+                ):
                     # add default orientation if missing
                     targ_pose = (targ_pose, (0, 0, 0, 1))
 
@@ -316,8 +352,8 @@ class Task:
 
                 place_pose = (np.asarray(place_pose[0]), np.asarray(place_pose[1]))
 
-                return {'pose0': pick_pose, 'pose1': place_pose}
-            
+                return {"pose0": pick_pose, "pose1": place_pose}
+
             else:
                 return None
 
@@ -391,7 +427,7 @@ class Task:
         # else:
         #     max_reward = 0
         #     step_reward = 0
-        
+
         # # Get cumulative rewards and return delta.
         # reward = self.progress + step_reward - self._rewards
         # self._rewards = self.progress + step_reward
@@ -430,7 +466,8 @@ class Task:
         # goal_done = len(self.goal['steps']) == 0  # pylint:
         # disable=g-explicit-length-test
         return (len(self.goals) == 0) and (
-                self._rewards > 0.99)  # pylint: disable=g-explicit-length-test
+            self._rewards > 0.99
+        )  # pylint: disable=g-explicit-length-test
         # return zone_done or defs_done or goal_done
 
     # -------------------------------------------------------------------------
@@ -440,8 +477,9 @@ class Task:
     def is_match(self, pose0, pose1, symmetry, consider_z=False):
         """Check if pose0 and pose1 match within a threshold.
         pose0 and pose1 should both be tuples of (translation, rotation).
-        Return true if the pose translation and orientation errors are below certain thresholds"""
-        if len(pose1) == 3 and (not hasattr(pose1[0], '__len__')):
+        Return true if the pose translation and orientation errors are below certain thresholds
+        """
+        if len(pose1) == 3 and (not hasattr(pose1[0], "__len__")):
             # add default orientation if missing
             pose1 = (pose1, (0, 0, 0, 1))
         # print(len(pose1) == 3, not hasattr(pose1[0], '__len__'))
@@ -465,8 +503,11 @@ class Task:
             # print(f"real pose: {[round(i, 2) for i in pose0[0]]}, "
             #       f"target pose height: {[round(i, 2) for i in pose1[0]]}, "
             #       f"diff_height: {diff_height}")
-            return (dist_pos < self.pos_eps) and (
-                    diff_rot < self.rot_eps) and (diff_height < self.height_eps)
+            return (
+                (dist_pos < self.pos_eps)
+                and (diff_rot < self.rot_eps)
+                and (diff_height < self.height_eps)
+            )
 
         return (dist_pos < self.pos_eps) and (diff_rot < self.rot_eps)
 
@@ -481,7 +522,8 @@ class Task:
 
         # Reconstruct real orthographic projection from point clouds.
         hmaps, cmaps = utils.reconstruct_heightmaps(
-            [color], [depth], self.oracle_cams, self.bounds, self.pix_size)
+            [color], [depth], self.oracle_cams, self.bounds, self.pix_size
+        )
 
         # Split color back into color and masks.
         cmap = np.uint8(cmaps)[0, Ellipsis, :3]
@@ -489,11 +531,13 @@ class Task:
         mask = np.int32(cmaps)[0, Ellipsis, 3:].squeeze()
         return cmap, hmap, mask
 
-    def get_random_pose(self, env, obj_size=0.1, bound=np.zeros((3, 2)), **kwargs) -> Tuple[List, List]:
+    def get_random_pose(
+        self, env, obj_size=0.1, bound=np.zeros((3, 2)), **kwargs
+    ) -> Tuple[List, List]:
         """
         Get random collision-free object pose within workspace bounds.
         :param obj_size: (3, ) contains the object size in x,y,z dimensions
-        return: translation (3, ), rotation (4, ) """
+        return: translation (3, ), rotation (4, )"""
 
         # Get erosion size of object in pixels.
         if bound.any() == 0:
@@ -540,23 +584,27 @@ class Task:
         return float(self._rewards)
 
     def add_corner_anchor_for_pose(self, env, pose):
-        corner_template = 'corner/corner-template.urdf'
-        replace = {'DIMX': (0.04,), 'DIMY': (0.04,)}
+        corner_template = "corner/corner-template.urdf"
+        replace = {"DIMX": (0.04,), "DIMY": (0.04,)}
 
         # IMPORTANT: REPLACE THE TEMPLATE URDF
         corner_urdf = self.fill_template(corner_template, replace)
         if len(pose) != 2:
             pose = [pose, (0, 0, 0, 1)]
-        env.add_object(corner_urdf, pose, 'fixed')
+        env.add_object(corner_urdf, pose, "fixed")
 
     def get_target_sample_surface_points(self, model, scale, pose, num_points=50):
         import trimesh
+
         mesh = trimesh.load_mesh(model)
         points = trimesh.sample.volume_mesh(mesh, num_points * 3)
         points = points[:num_points]
         points = points * np.array(scale)
         points = utils.apply(pose, points.T)
-        poses = [((x, y, z), (0, 0, 0, 1)) for x, y, z in zip(points[0], points[1], points[2])]
+        poses = [
+            ((x, y, z), (0, 0, 0, 1))
+            for x, y, z in zip(points[0], points[1], points[2])
+        ]
         return poses
 
     # -------------------------------------------------------------------------
@@ -567,14 +615,16 @@ class Task:
 
     def fill_template(self, template, replace):
         """Read a file and replace key strings.
-        NOTE: This function must be called if a URDF has template in its name """
+        NOTE: This function must be called if a URDF has template in its name"""
 
         full_template_path = os.path.join(self.assets_root, template)
-        if not os.path.exists(full_template_path) or (self.check_require_obj(
-                full_template_path) and 'template' not in full_template_path):
+        if not os.path.exists(full_template_path) or (
+            self.check_require_obj(full_template_path)
+            and "template" not in full_template_path
+        ):
             return template
 
-        with open(full_template_path, 'r') as file:
+        with open(full_template_path, "r") as file:
             fdata = file.read()
 
         for field in replace:
@@ -582,24 +632,26 @@ class Task:
             #     replace[field] = (replace[field], )
 
             for i in range(len(replace[field])):
-                fdata = fdata.replace(f'{field}{i}', str(replace[field][i]))
+                fdata = fdata.replace(f"{field}{i}", str(replace[field][i]))
 
-            if field == 'COLOR':
+            if field == "COLOR":
                 # handle gpt
                 pattern = r'<color rgba="(.*?)"/>'
                 code_string = re.findall(pattern, fdata)
                 if type(replace[field]) is str:
                     replace[field] = utils.COLORS[replace[field]]
                 for to_replace_color in code_string:
-                    fdata = fdata.replace(f'{to_replace_color}',
-                                          " ".join([str(x) for x in list(replace[field]) + [1]]))
+                    fdata = fdata.replace(
+                        f"{to_replace_color}",
+                        " ".join([str(x) for x in list(replace[field]) + [1]]),
+                    )
 
         alphabet = string.ascii_lowercase + string.digits
-        rname = ''.join(random.choices(alphabet, k=16))
+        rname = "".join(random.choices(alphabet, k=16))
         tmpdir = tempfile.gettempdir()
         template_filename = os.path.split(template)[-1]
-        fname = os.path.join(tmpdir, f'{template_filename}.{rname}')
-        with open(fname, 'w') as file:
+        fname = os.path.join(tmpdir, f"{template_filename}.{rname}")
+        with open(fname, "w") as file:
             file.write(fdata)
         return fname
 
@@ -619,7 +671,9 @@ class Task:
             np.arange(-obj_dim[0] / 2, obj_dim[0] / 2, 0.02),
             np.arange(-obj_dim[1] / 2, obj_dim[1] / 2, 0.02),
             np.arange(-obj_dim[2] / 2, obj_dim[2] / 2, 0.02),
-            sparse=False, indexing='xy')
+            sparse=False,
+            indexing="xy",
+        )
         return np.vstack((xv.reshape(1, -1), yv.reshape(1, -1), zv.reshape(1, -1)))
 
     def get_sphere_object_points(self, obj):
@@ -633,7 +687,9 @@ class Task:
             np.arange(mesh_dim[0][0], mesh_dim[1][0], 0.02),
             np.arange(mesh_dim[0][1], mesh_dim[1][1], 0.02),
             np.arange(mesh_dim[0][2], mesh_dim[1][2], 0.02),
-            sparse=False, indexing='xy')
+            sparse=False,
+            indexing="xy",
+        )
         return np.vstack((xv.reshape(1, -1), yv.reshape(1, -1), zv.reshape(1, -1)))
 
     def color_random_brown(self, obj):
@@ -649,7 +705,7 @@ class Task:
             return obj_ids
 
         if symmetries is None:
-            symmetries = [0.] * len(obj_ids)
+            symmetries = [0.0] * len(obj_ids)
         if len(symmetries) == 1:
             symmetries = symmetries * len(obj_ids)
         objs = []
@@ -658,10 +714,21 @@ class Task:
             objs.append((obj_id, (symmetry, None)))
         return objs
 
-    def add_goal(self, objs, matches, targ_poses, replace, rotations, metric, params,
-                 step_max_reward,
-                 symmetries=None, language_goal=None, **kwargs):
-        """ Add the goal to the environment
+    def add_goal(
+        self,
+        objs,
+        matches,
+        targ_poses,
+        replace,
+        rotations,
+        metric,
+        params,
+        step_max_reward,
+        symmetries=None,
+        language_goal=None,
+        **kwargs,
+    ):
+        """Add the goal to the environment
         - objs (List of Tuple [(obj_id, (float, None))] ): object ID, (the radians that the object is symmetric over, None). Do not pass in `(object id, object pose)` as the wrong tuple. or `object id` (such as `containers[i][0]`).
         - matches (Binary Matrix): a binary matrix that denotes which object is matched with which target. This matrix has dimension len(objs) x len(targ_poses).
         - targ_poses (List of Poses [(translation, rotation)] ): a list of target poses of tuple (translation, rotation). Don't pass in object IDs such as `bowls[i-1][0]` or  `[stands[i][0]]`.
@@ -672,15 +739,27 @@ class Task:
         - step_max_reward (float): the maximum reward of matching all the objects with all the target poses.
         """
         objs = self.zip_obj_ids(objs, symmetries)
-        self.goals.append((objs, matches, targ_poses, replace, rotations,
-                           metric, params, step_max_reward))
+        self.goals.append(
+            (
+                objs,
+                matches,
+                targ_poses,
+                replace,
+                rotations,
+                metric,
+                params,
+                step_max_reward,
+            )
+        )
         if language_goal is not None:
             if type(language_goal) is str:
                 self.lang_goals.append(language_goal)
             elif type(language_goal) is list:
                 self.lang_goals.extend(language_goal)
 
-    def make_piles(self, env, block_color=None, count=1, num_blocks=None, *args, **kwargs):
+    def make_piles(
+        self, env, block_color=None, count=1, num_blocks=None, *args, **kwargs
+    ):
         """
         add the piles objects for tasks involving piles
         """
@@ -695,7 +774,7 @@ class Task:
                 xyz = (rx, ry, 0.5)
                 theta = np.random.rand() * 2 * np.pi
                 xyzw = utils.eulerXYZ_to_quatXYZW((0, 0, theta))
-                obj_id = env.add_object('block/small.urdf', (xyz, xyzw))
+                obj_id = env.add_object("block/small.urdf", (xyz, xyzw))
                 if block_color is not None:
                     if type(block_color) is str:
                         color = utils.COLORS[block_color]
@@ -711,9 +790,10 @@ class Task:
     def make_rope(self, *args, **kwargs):
         return self.make_ropes(*args, **kwargs)
 
-    def make_ropes(self, env, corners, radius=0.005, n_parts=20, color_name='red', *args,
-                   **kwargs):
-        """ add cables simulation for tasks that involve cables """
+    def make_ropes(
+        self, env, corners, radius=0.005, n_parts=20, color_name="red", *args, **kwargs
+    ):
+        """add cables simulation for tasks that involve cables"""
         # Get corner points of square.
 
         # radius = 0.005
@@ -731,8 +811,9 @@ class Task:
 
         for i in range(n_parts):
             position[2] += np.linalg.norm(increment)
-            part_id = p.createMultiBody(0.1, part_shape, part_visual,
-                                        basePosition=position)
+            part_id = p.createMultiBody(
+                0.1, part_shape, part_visual, basePosition=position
+            )
             if parent_id > -1:
                 constraint_id = p.createConstraint(
                     parentBodyUniqueId=parent_id,
@@ -742,24 +823,31 @@ class Task:
                     jointType=p.JOINT_POINT2POINT,
                     jointAxis=(0, 0, 0),
                     parentFramePosition=(0, 0, np.linalg.norm(increment)),
-                    childFramePosition=(0, 0, 0))
+                    childFramePosition=(0, 0, 0),
+                )
                 p.changeConstraint(constraint_id, maxForce=100)
 
             if (i > 0) and (i < n_parts - 1):
                 color = utils.COLORS[color_name] + [1]
                 p.changeVisualShape(part_id, -1, rgbaColor=color)
 
-            env.obj_ids['rigid'].append(part_id)
+            env.obj_ids["rigid"].append(part_id)
             parent_id = part_id
             target_xyz = np.float32(corner0) + i * increment + increment / 2
             objects.append((part_id, (0, None)))
             targets.append((target_xyz, (0, 0, 0, 1)))
 
-            if hasattr(env, 'record_cfg') and 'blender_render' in env.record_cfg and \
-                    env.record_cfg['blender_render']:
-                sphere_template = os.path.join(self.assets_root, 'sphere/sphere_rope.urdf')
-                env.blender_recorder.register_object(part_id, os.path.join(self.assets_root,
-                                                                           'sphere/sphere_rope.urdf'))
+            if (
+                hasattr(env, "record_cfg")
+                and "blender_render" in env.record_cfg
+                and env.record_cfg["blender_render"]
+            ):
+                sphere_template = os.path.join(
+                    self.assets_root, "sphere/sphere_rope.urdf"
+                )
+                env.blender_recorder.register_object(
+                    part_id, os.path.join(self.assets_root, "sphere/sphere_rope.urdf")
+                )
 
         matches = np.clip(np.eye(n_parts) + np.eye(n_parts)[::-1], 0, 1)
         return objects, targets, matches
@@ -769,7 +857,7 @@ class Task:
             obj_shapes = self.kit[letter]
             return obj_shapes
 
-        if self.mode == 'train':
+        if self.mode == "train":
             obj_shapes = np.random.choice(self.train_set, n_objects)
         else:
             if self.homogeneous:
@@ -781,22 +869,39 @@ class Task:
 
     def make_kitting_objects(self, env, targets, obj_shapes, n_objects, colors):
         symmetry = [
-            2 * np.pi, 2 * np.pi, 2 * np.pi / 3, np.pi / 2, np.pi / 2, 2 * np.pi,
-            np.pi, 2 * np.pi / 5, np.pi, np.pi / 2, 2 * np.pi / 5, 0, 2 * np.pi,
-            2 * np.pi, 2 * np.pi, 2 * np.pi, 0, 2 * np.pi / 6, 2 * np.pi, 2 * np.pi
+            2 * np.pi,
+            2 * np.pi,
+            2 * np.pi / 3,
+            np.pi / 2,
+            np.pi / 2,
+            2 * np.pi,
+            np.pi,
+            2 * np.pi / 5,
+            np.pi,
+            np.pi / 2,
+            2 * np.pi / 5,
+            0,
+            2 * np.pi,
+            2 * np.pi,
+            2 * np.pi,
+            2 * np.pi,
+            0,
+            2 * np.pi / 6,
+            2 * np.pi,
+            2 * np.pi,
         ]
         objects = []
         matches = []
-        template = 'kitting/object-template.urdf'
+        template = "kitting/object-template.urdf"
 
         for i in range(n_objects):
             shape = obj_shapes[i]
             size = (0.08, 0.08, 0.02)
             pose = self.get_random_pose(env, size)
-            fname = f'{shape:02d}.obj'
-            fname = os.path.join(self.assets_root, 'kitting', fname)
+            fname = f"{shape:02d}.obj"
+            fname = os.path.join(self.assets_root, "kitting", fname)
             scale = [0.003, 0.003, 0.001]  # .0005
-            replace = {'FNAME': (fname,), 'SCALE': scale, 'COLOR': colors[i]}
+            replace = {"FNAME": (fname,), "SCALE": scale, "COLOR": colors[i]}
 
             # IMPORTANT: REPLACE THE TEMPLATE URDF
             urdf = self.fill_template(template, replace)
@@ -813,11 +918,12 @@ class Task:
         if self.goals:
             for obj in self.goals[0][0]:
                 obj_pose = p.getBasePositionAndOrientation(obj[0])
-                workspace_empty = workspace_empty and ((obj_pose[0][1] < -0.5) or
-                                                       (obj_pose[0][1] > 0))
+                workspace_empty = workspace_empty and (
+                    (obj_pose[0][1] < -0.5) or (obj_pose[0][1] > 0)
+                )
             if not self.steps:
                 self.goals = []
-                print('Palletized boxes toppled. Terminating episode.')
+                print("Palletized boxes toppled. Terminating episode.")
                 return
 
             if workspace_empty:

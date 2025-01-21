@@ -20,22 +20,16 @@ if __name__ == "__main__":
         },
     )
     from tasks.many_blocks import ManyBlocksTask
-    from utils.task_primitives import Task
+    from utils.task_primitives import LoadedTask
 
-    task = Task()
-    config = EnvironmentConfiguration.from_path("config.pkl")
-    print(config)
+    env.set_task(LoadedTask("config.pkl"))
+    env.reset()
 
-    task.restoreFromConfig(env, config)
+    for i in range(1000):
+        p.stepSimulation()
 
-    # env.set_task(task)
-    # env.reset()
+    config = env.task.getCurrentConfiguration(env)
 
-    # for i in range(1000):
-    #     p.stepSimulation()
-
-    # config = env.task.getCurrentConfiguration(env)
-
-    # config.dump("config.pkl")
+    config.dump("config.pkl")
 
     time.sleep(10)

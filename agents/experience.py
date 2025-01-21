@@ -13,16 +13,35 @@ and for retrieval of few-shot examples
 
 import pickle
 from enum import Enum
+from datetime import datetime
+
+EXPERIENCE_DIR = "memory/trajectories"
 
 
 class ExperienceTrace:
-    def __init__(self, env_task):
-        self.env_task = env_task
-        self.messages = []
+    """
+    point is that - even when we iteratively solve a task by providing the agent with clues, we reset the environment state inbetween
+    this is because the agent does not have a good way to perceive the environment at the moment
+    """
+
+    def __init__(self, env_config, initial_image, task):
+        self.env_config = env_config
+        self.initial_image = initial_image
+        self.task = task
+        self.attempts = []
         self.is_success = False
-    
-    def addAttempt(code_attempt, feedback):
-        
 
-    
+    def was_success(self, final_config, success_image):
+        self.is_success = True
+        self.final_config = final_config
+        self.success_image = success_image
 
+        # generate a description to embed? so later we can just cluster these?
+
+    def add_attempt_round(self, code_attempt, feedback):
+        self.messages.append((code_attempt, feedback))
+
+    def dump(self):
+        timestamp = datetime.now().strftime("%m-%d-%H-%M-%S")
+        with open(f"{EXPERIENCE_DIR}/{timestamp}.pkl", "wb") as file:
+            pickle.dump(self, file)
