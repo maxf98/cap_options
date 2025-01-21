@@ -1,4 +1,5 @@
 """PyBullet utilities for loading assets."""
+
 import time
 
 
@@ -14,7 +15,23 @@ def load_urdf(pybullet_client, file_path, *args, **kwargs):
             print(e)
             time.sleep(0.1)
     print("missing urdf error. use dummy block.")
-    urdf = 'stacking/block.urdf'
+    urdf = "stacking/block.urdf"
     return pybullet_client.loadURDF(urdf, *args, **kwargs)
 
+
 # END GOOGLE-EXTERNAL
+
+
+def load_sdf(pybullet_client, file_path, *args, **kwargs):
+    """Loads the given MJCF filepath."""
+    # Handles most general file open case.
+    for _ in range(6):
+        try:
+            return pybullet_client.loadSDF(file_path, *args, **kwargs)
+        except pybullet_client.error as e:
+            print("PYBULLET load sdf error!")
+            print(e)
+            time.sleep(0.1)
+    print("missing mjcf error. use dummy block.")
+    mjcf = "stacking/block.urdf"
+    return pybullet_client.loadSDF(mjcf, *args, **kwargs)

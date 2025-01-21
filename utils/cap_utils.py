@@ -1,12 +1,21 @@
 import ast
 import re
 
-from pygments import highlight
-from pygments.formatters import TerminalFormatter
-from pygments.lexers import PythonLexer
+import traceback
+
+from PIL import Image
+import io
+import base64
+
+from utils import core_primitives, core_types
+import numpy as np
+import itertools
+
+from prompts.base_prompt import bug_fix_prompt
+from utils.llm_utils import query_llm, parse_code_response, extract_code
+
 
 class FunctionParser(ast.NodeTransformer):
-
     def __init__(self, fs, f_assigns):
         super().__init__()
         self._fs = fs
@@ -29,61 +38,40 @@ class FunctionParser(ast.NodeTransformer):
         return node
 
 
-def extract_code(res):
-    if '```python' in res:
-        pattern = r'```python\n(.*?)```'
-    elif '```Python' in res:
-        pattern = r'```Python\n(.*?)```'
-    elif '```' in res:
-        pattern = r'```\n(.*?)```'
-    else:
-        pattern = r'.*'
-    code_string = re.search(pattern, res, re.DOTALL)
-    if not code_string:
-        print('input: ', res)
-        raise ValueError('extract failed')
-    if pattern == r'.*':
-        code_string = code_string.group(0).strip()
-    else:
-        code_string = code_string.group(1).strip()
-
-    lines = code_string.splitlines()
-    if '```' in code_string:
-        lines = lines[1:]
-    lines = [line for line in lines if line.strip() != '']
-    code_string = "\n".join(lines)
-
-    return code_string
-
-
-def exec_safe(code_str, gvars=None, lvars=None):
-    if '```' in code_str:
-        code_str = extract_code(code_str)
-
-    if 'import' in code_str:
-        import_pattern = re.compile(r'^\s*(import .*|from .* import .*)$', re.MULTILINE)
-        code_str = import_pattern.sub('', code_str).strip()
-    assert '__' not in code_str
-
-    if gvars is None:
-        gvars = {}
-    if lvars is None:
-        lvars = {}
-    empty_fn = lambda *args, **kwargs: None
-    custom_gvars = merge_dicts([
-        gvars,
-        {'exec': empty_fn, 'eval': empty_fn}
-    ])
-    # print(f'THE CODE STRING IS\n{code_str}\nEND')
-    exec(code_str, custom_gvars, lvars)
+def code_exec_with_bug_fix(code_str, code_env, max_num_attempts=1):
+    # fix bugs in llm-generated code... with llm
+    # max_num_attempts must be >= 1 (otherwise it just never gets run, >1 to fix bugs)
+    attempts = 0
+    messages = [
+        {
+            "role": "system",
+            "content": "you write python code to control a robotic arm. You receive pieces of code that contain an error, as well as the error traceback, and you are supposed to fix it.",
+        }
+    ]
+    while attempts < max_num_attempts:
+        try:
+            exec(code_str, code_env)
+        except:
+            traceback.print_exc()
+            messages.extend(
+                [
+                    {"role": "assistant", "content": code_str},
+                    {
+                        "role": "user",
+                        "content": bug_fix_prompt(code_str, traceback.format_exc()),
+                    },
+                ]
+            )
+            response = query_llm(messages)
+            print("attempting to fix bugs")
+            code_str = parse_code_response(response)
+            attempts += 1
+        else:
+            return
 
 
 def merge_dicts(dicts):
-    return {
-        k: v
-        for d in dicts
-        for k, v in d.items()
-    }
+    return {k: v for d in dicts for k, v in d.items()}
 
 
 def var_exists(name, all_vars):
@@ -94,6 +82,3 @@ def var_exists(name, all_vars):
     else:
         exists = True
     return exists
-
-def print_code(code):
-    print(highlight(f'{code}', PythonLexer(), TerminalFormatter()))

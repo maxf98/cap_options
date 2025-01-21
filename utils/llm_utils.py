@@ -1,17 +1,23 @@
 import os
+import re
 from collections import defaultdict
 import pickle
 import openai
 from time import sleep
-from utils.cap_utils import extract_code, print_code
+from pygments import highlight
+from pygments.formatters import TerminalFormatter
+from pygments.lexers import PythonLexer
 
+from PIL import Image
+import io
+import base64
 
 
 api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
 
 
-TEMPERATURE = 1
+TEMPERATURE = 0
 MODEL = "gpt-4o"
 MAX_TOKENS = 3000
 
@@ -20,31 +26,114 @@ def query_llm(messages):
     while True:
         try:
             response = client.chat.completions.create(
-                    messages=messages,
-                    temperature=TEMPERATURE,
-                    model=MODEL,
-                    max_tokens=MAX_TOKENS,
-                )
+                messages=messages,
+                temperature=TEMPERATURE,
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+            )
             response = response.choices[0].message.content
             break
 
-        except (openai.APIError) as e:
-            print(f'OpenAI API got err {e}')
-            print('Retrying after 10s.')
+        except openai.APIError as e:
+            print(f"OpenAI API got err {e}")
+            print("Retrying after 10s.")
             sleep(10)
 
     return response
 
 
-def parse_code_response(response):
-    if '```' in response:
-        code_str = extract_code(response)
+def query_llm_structured(messages, response_format):
+    while True:
+        try:
+            response = client.beta.chat.completions.parse(
+                messages=messages,
+                temperature=TEMPERATURE,
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+                response_format=response_format,
+            )
+            response = response.choices[0].message.parsed
+            break
 
+        except openai.APIError as e:
+            print(f"OpenAI API got err {e}")
+            print("Retrying after 10s.")
+            sleep(10)
+
+    return response
+
+
+def extract_code(res):
+    if "```python" in res:
+        pattern = r"```python\n(.*?)```"
+    elif "```Python" in res:
+        pattern = r"```Python\n(.*?)```"
+    elif "```" in res:
+        pattern = r"```\n(.*?)```"
+    else:
+        pattern = r".*"
+    code_string = re.search(pattern, res, re.DOTALL)
+    if not code_string:
+        print("input: ", res)
+        raise ValueError("extract failed")
+    if pattern == r".*":
+        code_string = code_string.group(0).strip()
+    else:
+        code_string = code_string.group(1).strip()
+
+    lines = code_string.splitlines()
+    if "```" in code_string:
+        lines = lines[1:]
+    lines = [line for line in lines if line.strip() != ""]
+    code_string = "\n".join(lines)
+
+    return code_string
+
+
+def parse_code_response(response):
+    if "```" in response:
+        code_str = extract_code(response)
+    else:
+        code_str = response
     print_code(code_str)
 
     return code_str
 
 
+def print_code(code):
+    print(highlight(f"{code}", PythonLexer(), TerminalFormatter()))
+
+
 def read_py(path_to_py):
     f = open(path_to_py, "r")
     return f.read()
+
+
+def encode_image(image_source):
+    image = Image.fromarray(image_source)
+    # image = image.convert('RGB')
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    img_str = buffered.getvalue()
+    img = base64.b64encode(img_str).decode("utf-8")
+    return img
+
+
+if __name__ == "__main__":
+    import pydantic
+
+    class Ret(pydantic.BaseModel):
+        statement_is_true: bool
+        reasoning: str
+
+    resp = query_llm_structured(
+        messages=[
+            {
+                "role": "user",
+                "content": "evaluate this statement: all humans have 10 fingers",
+            }
+        ],
+        response_format=Ret,
+    )
+
+    print(resp)

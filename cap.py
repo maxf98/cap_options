@@ -1,114 +1,165 @@
 ## what is code-as-policies fundamentally?
-##  just generate python code to control the robot - so we need the basic API, we need the CAP interaction, 
+##  just generate python code to control the robot - so we need the basic API, we need the CAP interaction,
 # and eventually we can add hierarchical function generation, although I think it might not be necessary
 # we're using GPT-4o, so images are a given, that should depend on the prompt
 import os
-import ast 
 from time import sleep
-import copy
 
-from utils.cap_utils import merge_dicts, extract_code, exec_safe, var_exists, FunctionParser, print_code
+from utils.cap_utils import exec_safe, print_code, get_code_globals
 from utils import core_primitives, core_types
-import utils.general_utils as utils
 from utils.llm_utils import query_llm, parse_code_response
+from agents.skill import add_new_skill
+
+from PIL import Image
+import base64
+import io
+
+import pydantic
+from typing import Optional
+import traceback
 
 import openai
 import numpy as np
 import itertools
-from collections import defaultdict
-import pickle
+import ast
 
-import openai
-
-api_key = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI(api_key=api_key)
-
-TEMPERATURE = 1
-MODEL = "gpt-4o"
-MAX_TOKENS = 3000
-
-
-FGEN_PROMPT = open(f"prompts/fgen.txt").read()
+from prompts.base_prompt import (
+    skill_extraction_prompt,
+    main_planner_prompt,
+    parse_completion_prompt,
+    explain_failure_prompt,
+    system_prompt,
+    bug_fix_prompt,
+)
 
 
-def get_code_globals():
-    vars = { name: getattr(core_primitives, name) for name in core_primitives.__all__ }
-    vars.update({name: getattr(core_types, name) for name in core_types.__all__ }) 
-    vars.update({ 'np': np, 'itertools': itertools})
-    return vars
+def planner_lmp(messages, task, env):
+    messages.append({"role": "user", "content": main_planner_prompt})
+    messages.append({"role": "user", "content": task})
+
+    response = query_llm(messages)
+    code_str = parse_code_response(response)
+
+    # new_fs = create_new_fs_from_code(code_str, gvars)
+    # lvars = new_fs
+    code_exec_with_bug_fix(code_str, env)
+    return code_str
 
 
-def lmp(messages, env):
+# --------------------------------------------------------------------------
+
+
+def check_completion_lmp(task, task_attempt, image, env):
+    # two step prompt: if completion check returns true, we just take it at its word
+    # if false, we attach the code, and the image, and ask the llm to explain what didn't work
+    # then we pass that as context for replanning
+    messages = []
+
+    messages.append({"role": "user", "content": parse_completion_prompt(task)})
     response = query_llm(messages)
     code_str = parse_code_response(response)
     gvars = get_code_globals()
     gvars.update({"env": env})
 
-    new_fs = create_new_fs_from_code(code_str, gvars)
-    lvars = new_fs
-    
-    exec_safe(code_str, gvars, lvars)
+    exec(code_str, gvars)
 
-    return code_str
+    code_task_success = gvars["task_success"]
+
+    return code_task_success
+    # if code_task_success:
+    #     return
+
+    # b64img = encode_image(image)
+    # messages.append({"role": "user", "content": [
+    #             {"type": "text", "text": explain_failure_prompt(task, task_attempt, code_str)},
+    #             {"type": "image_url", "image_url":
+    #                 {"url": f"data:image/jpeg;base64,{b64img}", "detail": "low"}}]})
+
+    # response = query_llm(messages)
+
+    # return response
+
+
 # ---------------------------------------------------------------------
 
-def fgen_lmp(f_name, f_sig, new_fs, f_description=None):
-    messages = [{"role": "system", "content": FGEN_PROMPT}, {"role": "user", "content": f"write the function code for {f_name} with signature {f_sig}"}]
+
+def is_single_function_block(code_str):
+    tree = ast.parse(code_str)
+    return len(tree.body) == 1 and isinstance(tree.body[0], ast.FunctionDef)
+
+
+def extract_skill_lmp(messages):
+    # task success => define function that wraps the code result and generate a function description
+    # take the last message, generate an appropriate function name, encapsulate into a function, and conform to Skill BaseModel
+    messages.append({"role": "user", "content": skill_extraction_prompt})
     response = query_llm(messages)
-    f_src = parse_code_response(response)
+    code_str = parse_code_response(response)
+    print_code(code_str)
 
-    gvars = merge_dicts([gvars, lvars, new_fs])
-    lvars = {}
+    if is_single_function_block(code_str):
+        namespace = {}
+        exec(code_str, get_code_globals(), namespace)
+        for item in namespace.values():
+            if callable(item) and getattr(item, "__code__", None):
+                print(item)
+                add_new_skill(item.__name__, code_str)
+    else:
+        print("should try again then... function extraction was unsuccessful")
+        return
+    # extract from conversation history
+    return
 
-    exec_safe(f_src, gvars, lvars)
 
-    f = lvars[f_name]
+if __name__ == "__main__":
+    print("ello")
 
-    return f, f_src
+    from environments.environment import Environment
 
+    env = Environment(
+        "/Users/maxfest/vscode/thesis/ravens/environments/assets",
+        disp=False,
+        shared_memory=False,
+        hz=480,
+        record_cfg={
+            "save_video": False,
+            "save_video_path": "${data_dir}/${task}-cap/videos/",
+            "add_text": True,
+            "add_task_text": True,
+            "fps": 20,
+            "video_height": 640,
+            "video_width": 720,
+        },
+    )
+    from tasks.many_blocks import ManyBlocksTask
 
-def create_new_fs_from_code(code_str, gvars):
-    if '```' in code_str:
-        code_str = extract_code(code_str)
+    env.set_task(ManyBlocksTask())
+    env.reset()
+    import time
 
-    fs, f_assigns = {}, {}
-    f_parser = FunctionParser(fs, f_assigns)
-    f_parser.visit(ast.parse(code_str))
-    for f_name, f_assign in f_assigns.items():
-        if f_name in fs:
-            fs[f_name] = f_assign
+    time.sleep(1)
 
-    new_fs = {}
-    srcs = {}
-    for f_name, f_sig in fs.items():
-        all_vars = merge_dicts([gvars, new_fs])
-        if not var_exists(f_name, all_vars):
-            f, f_src = fgen_lmp(
-                f_name,
-                f_sig,
-                new_fs
-            )
+    img = env.render()
+    b64img = encode_image(img)
 
-            # recursively define child_fs in the function body if needed
-            f_def_body = ast.unparse(ast.parse(f_src).body[0].body)
-            child_fs, child_f_srcs = create_new_fs_from_code(
-                f_def_body, all_vars
-            )
+    from matplotlib import pyplot as plt
 
-            if len(child_fs) > 0:
-                new_fs.update(child_fs)
-                srcs.update(child_f_srcs)
+    # plt.imshow(img)
+    # plt.show()
 
-                # redefine parent f so newly created child_fs are in scope
-                gvars = merge_dicts(
-                    [gvars, new_fs]
-                )
-                lvars = {}
-
-                exec_safe(f_src, gvars, lvars)
-
-                f = lvars[f_name]
-
-            new_fs[f_name], srcs[f_name] = f, f_src
-
-    return new_fs, srcs
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "tell me what's in this image"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{b64img}",
+                        "detail": "low",
+                    },
+                },
+            ],
+        }
+    ]
+    response = query_llm(messages)
+    print(response)
