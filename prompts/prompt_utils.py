@@ -15,14 +15,14 @@ def get_core_types_text():
 
 def get_core_primitives_text():
     functions = extract_functions("utils/core_primitives.py")
-    api_string = "The basic environment API is provided through the local variable 'bot'. You may call any of the following methods:\n"
+    api_string = "The basic environment API is as follows:\n"
     for func in functions:
         args_string = (", ").join(
             [f"{arg["name"]}: {arg["annotation"]}" for arg in func["args"]]
         )
         returns_string = f" -> {func["returns"]}" if func["returns"] is not None else ""
         func_string = (
-            f"bot.{func["name"]}({args_string}){returns_string}:\n {func["docstring"]}"
+            f"{func["name"]}({args_string}){returns_string}:\n {func["docstring"]}"
         )
 
         api_string += func_string + "\n" + "-" * 20 + "\n"
@@ -66,4 +66,4 @@ if __name__ == "__main__":
     # print("___________________")
     # print(get_core_types_text())
 
-    print(get_core_types_text())
+    print(get_core_primitives_text())

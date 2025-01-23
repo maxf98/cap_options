@@ -3,7 +3,6 @@ from tasks.many_blocks import ManyBlocksTask
 from tasks.precision_cylinder_tower import PrecisionCylinderTower
 from tasks.assembling_kits import AssemblingKits
 
-from utils.core_primitives import EnvWrapper
 from utils import core_types
 import numpy as np
 import itertools
@@ -11,6 +10,7 @@ import itertools
 from agents.skill import SkillManager
 from agents.action import Actor
 from agents.critic import Critic
+from agents.experience import ExperienceTrace
 
 
 class CapOptioner:
@@ -22,7 +22,7 @@ class CapOptioner:
         self.critic = Critic()
 
     def run(self):
-        code_env = self.setup_code_environment()
+        env = self.setup_environment()
 
         while True:
             task = input(
@@ -32,35 +32,32 @@ class CapOptioner:
                 + "Input your instruction:"
             )
 
-            self.attempt_task(code_env, task)
+            self.attempt_task(env, task)
 
-    def attempt_task(self, code_env, task):
-        self.actor.set_env_and_task(code_env, task)
-        self.critic.set_env_and_task(code_env, task)
+    def attempt_task(self, env, task):
+        self.actor.set_env_and_task(env, task)
+
+        initial_config = env.task.getCurrentConfiguration()
+        trace = ExperienceTrace(initial_config, task)
 
         feedback = None
 
         for attempt_round in range(self.max_num_task_attempts):
             code_plan = self.actor.attempt_task(feedback)
 
-            # completion_image = self.wrapped_env.env.render()
-            # # evaluate whether plan was successful
-            # task_success, feedback, eval_code = self.critic.ai_check_task_success(
-            #     code_plan, completion_image
-            # )
+            feedback = input(
+                "How did I do? (type success or give a reason for failure)"
+            )
 
-            feedback = input("How did I do?")
-
-            # this can only happen if it was actually successful at generating a skill... how can we guarantee this?
-            # if task_success:
-            #     self.skill_manager.add_skill_to_library(
-            #         task, code_plan, eval_code, completion_image
-            #     )
-            #     return True
+            trace.append(code_plan, feedback)
+            if feedback == "success":
+                trace.was_success(env.task.getCurrentConfiguration())
+                break
 
         return False
 
-    def setup_code_environment(self) -> Environment:
+    def setup_environment(self) -> Environment:
+        """handles the basic environment setup, primarily adding objects to the scene"""
         env = Environment(
             "environments/assets",
             disp=True,
@@ -80,15 +77,7 @@ class CapOptioner:
         env.set_task(ManyBlocksTask())
         env.reset()
 
-        self.wrapped_env = EnvWrapper(env)
-
-        code_env = {"bot": self.wrapped_env}
-        code_env.update(
-            {name: getattr(core_types, name) for name in core_types.__all__}
-        )
-        code_env.update({"np": np, "itertools": itertools})
-
-        return code_env
+        return env
 
 
 if __name__ == "__main__":

@@ -22,13 +22,10 @@ ROOT_DIR = "/Users/maxfest/vscode/thesis/thesis/memory/skill_library/"
 
 
 class Skill:
-    def __init__(
-        self, name, description, skill_code, eval_code, success_image, folder_name=None
-    ):
+    def __init__(self, name, description, skill_code, success_image, folder_name=None):
         self.name = name
         self.description = description
         self.skill_code = skill_code
-        self.eval_code = eval_code
         self.success_image = success_image
 
         self.skill_dir = (
@@ -42,8 +39,6 @@ class Skill:
             file.write(self.description)
         with open(f"{self.skill_dir}/skill_code.py", "w") as file:
             file.write(self.skill_code)
-        with open(f"{self.skill_dir}/eval_code.py", "w") as file:
-            file.write(self.eval_code)
 
         img = Image.fromarray(self.success_image)
         img.save(f"{self.skill_dir}/success_image.jpg")
@@ -58,12 +53,10 @@ class Skill:
             description = file.read()
         with open(f"{dir}/skill_code.py", "r") as file:
             skill_code = file.read()
-        with open(f"{dir}/eval_code.py", "r") as file:
-            eval_code = file.read()
 
         success_image = Image.open(f"{dir}/success_image.jpg")
 
-        return Skill(name, description, skill_code, eval_code, success_image)
+        return Skill(name, description, skill_code, success_image)
 
 
 class SkillManager:
@@ -106,7 +99,7 @@ class SkillManager:
     def num_skills(self):
         return self.vector_db.count()
 
-    def add_skill_to_library(self, task, skill_code, eval_code, success_image):
+    def add_skill_to_library(self, task, skill_code, success_image):
         skill_name, skill_description = self.generate_skill_name_and_description(
             task, skill_code
         )
@@ -133,7 +126,6 @@ class SkillManager:
             skill_name,
             skill_description,
             skill_code,
-            eval_code,
             success_image,
             folder_name=dumped_skill_name,
         )

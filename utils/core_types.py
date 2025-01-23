@@ -52,7 +52,11 @@ class Pose:
 
 @dataclass
 class AABBBoundingBox:
-    """Axis-aligned bounding box, represented by two points"""
+    """Axis-aligned bounding box, represented by two points
+    If the contained object is rotated on the x-y plane, the bounding box is larger than the object
+    Particularly, the corners of the bounding box do not correspond to the corners of the object...
+    (could take this out to be fair...)
+    """
 
     minPoint: Point3D
     maxPoint: Point3D

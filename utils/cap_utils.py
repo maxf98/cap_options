@@ -15,30 +15,14 @@ from prompts.base_prompt import bug_fix_prompt
 from utils.llm_utils import query_llm, parse_code_response, extract_code
 
 
-class FunctionParser(ast.NodeTransformer):
-    def __init__(self, fs, f_assigns):
-        super().__init__()
-        self._fs = fs
-        self._f_assigns = f_assigns
-
-    def visit_Call(self, node):
-        self.generic_visit(node)
-        if isinstance(node.func, ast.Name):
-            f_sig = ast.unparse(node).strip()
-            f_name = ast.unparse(node.func).strip()
-            self._fs[f_name] = f_sig
-        return node
-
-    def visit_Assign(self, node):
-        self.generic_visit(node)
-        if isinstance(node.value, ast.Call):
-            assign_str = ast.unparse(node).strip()
-            f_name = ast.unparse(node.value.func).strip()
-            self._f_assigns[f_name] = assign_str
-        return node
+def get_global_vars():
+    vars = {name: getattr(core_primitives, name) for name in core_primitives.__all__}
+    vars.update({name: getattr(core_types, name) for name in core_types.__all__})
+    vars.update({"np": np, "itertools": itertools})
+    return vars
 
 
-def code_exec_with_bug_fix(code_str, code_env, max_num_attempts=1):
+def code_exec_with_bug_fix(code_str, env, max_num_attempts=1):
     # fix bugs in llm-generated code... with llm
     # max_num_attempts must be >= 1 (otherwise it just never gets run, >1 to fix bugs)
     attempts = 0
@@ -50,7 +34,11 @@ def code_exec_with_bug_fix(code_str, code_env, max_num_attempts=1):
     ]
     while attempts < max_num_attempts:
         try:
-            exec(code_str, code_env)
+            gvars = get_global_vars()
+            gvars.extend({"env": env})
+            exec(
+                code_str,
+            )
         except:
             traceback.print_exc()
             messages.extend(
@@ -68,17 +56,3 @@ def code_exec_with_bug_fix(code_str, code_env, max_num_attempts=1):
             attempts += 1
         else:
             return
-
-
-def merge_dicts(dicts):
-    return {k: v for d in dicts for k, v in d.items()}
-
-
-def var_exists(name, all_vars):
-    try:
-        eval(name, all_vars)
-    except:
-        exists = False
-    else:
-        exists = True
-    return exists

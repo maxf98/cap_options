@@ -13,18 +13,12 @@ class Actor:
     def __init__(self):
         self.messages = [{"role": "system", "content": actor_system_prompt}]
 
-    def set_env_and_task(self, code_env, task):
+    def set_env_and_task(self, env, task):
         self.task = task
-        self.code_env = code_env
-
+        self.env = env
         self.messages.append(
             {"role": "user", "content": generate_action_plan_prompt(task)}
         )
-
-    def parse_env_state(self, env):
-        print("is this necessary?")
-        # this might be useful, for instance to get overview of the code plan to generate...
-        #
 
     def attempt_task(self, feedback=None):
         """where all the actual interaction logic should go...
@@ -41,7 +35,7 @@ class Actor:
         response = query_llm(self.messages)
         code_str = parse_code_response(response)
 
-        code_exec_with_bug_fix(code_str, self.code_env)
+        code_exec_with_bug_fix(code_str, self.env)
 
         self.messages.append({"role": "assistant", "content": response})
         return code_str
