@@ -7,7 +7,7 @@ from environments import primitives
 from environments.grippers import Grip
 
 # from environments.task import Task
-from utils.task_primitives import Task
+from tasks.task_primitives import Task
 
 from utils.core_types import TaskObject
 from utils import general_utils
@@ -33,4 +33,6 @@ class ManyBlocksTask(Task):
         # self.objs.append(TaskObject(objectType="pallet", color="green", id=zone_id))
 
         # Add pile of small blocks with `make_piles` function
-        self.add_many_blocks(env)
+        self.add_block(env, "red", (0.18, 0.12, 0.01))
+        self.add_block(env, "blue", (0.12, 0.11, 0.08))
+

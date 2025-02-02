@@ -12,6 +12,7 @@ import utils.general_utils as utils
 
 
 class EnvironmentConfiguration:
+    """stores a list of objects and their poses, s.t. we can reset to environment configurations"""
     def __init__(self, config: list[TaskObject, Pose] = []):
         self.config = config
 
@@ -42,10 +43,12 @@ class Task(Task):
 
     def __init__(self):
         super().__init__()
-        self.taskObjects = list[TaskObject]()
+        self.taskObjects: list[TaskObject] = []
 
     def reset(self, env):
         super().reset(env)
+
+        self.taskObjects = []
 
     def add_many_blocks(self, env: Environment, num_blocks: int = 20):
         for _ in range(num_blocks):
@@ -79,7 +82,7 @@ class Task(Task):
 
         self.taskObjects.append(task_obj)
 
-    def getCurrentConfiguration(self, env: Environment) -> EnvironmentConfiguration:
+    def get_current_configuration(self, env: Environment) -> EnvironmentConfiguration:
         """gets all the objects and their properties, so we can reinitialise the scene..."""
         config = []
         for obj in self.taskObjects:
@@ -89,18 +92,24 @@ class Task(Task):
         storable = EnvironmentConfiguration(config)
         return storable
 
-    def restoreFromConfig(self, env: Environment, config: EnvironmentConfiguration):
+    def restore_from_config(self, env: Environment, config: EnvironmentConfiguration):
         for obj, pose in config.config:
             if obj.objectType == "block":
                 self.add_block(env, obj.color, obj.size, pose)
 
 
 class LoadedTask(Task):
-    def __init__(self, config_path):
+    def __init__(self, config: EnvironmentConfiguration):
         super().__init__()
-        self.config = EnvironmentConfiguration.from_path(config_path)
+        self.config = config
+
+    @classmethod
+    def from_config_path(cls, config_path) -> "LoadedTask":
+        return LoadedTask(EnvironmentConfiguration.from_path(config_path))
 
     def reset(self, env):
         super().reset(env)
 
-        self.restoreFromConfig(env, self.config)
+        self.restore_from_config(env, self.config)
+
+

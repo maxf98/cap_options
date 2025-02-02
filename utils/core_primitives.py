@@ -9,25 +9,31 @@ the following functions require an initialised environment -
 the agent doesn't need to know anything about the environment, only what methods are available to it
 we are responsible for properly initialising the environment, and ensuring that the agent has access to it
 """
-env = Environment(
-    "/Users/maxfest/vscode/thesis/ravens/environments/assets",
-    disp=False,
-    shared_memory=False,
-    hz=480,
-    record_cfg={
-        "save_video": False,
-        "save_video_path": "${data_dir}/${task}-cap/videos/",
-        "add_text": True,
-        "add_task_text": True,
-        "fps": 20,
-        "video_height": 640,
-        "video_width": 720,
-    },
-)
-from tasks.many_blocks import ManyBlocksTask
 
-env.set_task(ManyBlocksTask())
-env.reset()
+"""
+IMPORTANT
+- pybullet can only handle one server at a time, if this is not commented out, this is the environment being used
+"""
+
+# env = Environment(
+#     "/Users/maxfest/vscode/thesis/ravens/environments/assets",
+#     disp=False,
+#     shared_memory=False,
+#     hz=480,
+#     record_cfg={
+#         "save_video": False,
+#         "save_video_path": "${data_dir}/${task}-cap/videos/",
+#         "add_text": True,
+#         "add_task_text": True,
+#         "fps": 20,
+#         "video_height": 640,
+#         "video_width": 720,
+#     },
+# )
+# from tasks.many_blocks import ManyBlocksTask
+
+# env.set_task(ManyBlocksTask())
+# env.reset()
 """-----------------------------------------------------------------------------"""
 
 
@@ -54,7 +60,7 @@ def get_end_effector_pose() -> Pose:
 
 def get_bbox(obj: TaskObject) -> AABBBoundingBox:
     """gets the bounding box of an object"""
-    aabb_min, aabb_max = env.getBoundingBox(obj.id)
+    aabb_min, aabb_max = env.get_bounding_box(obj.id)
 
     return AABBBoundingBox(Point3D.from_xyz(aabb_min), Point3D.from_xyz(aabb_max))
 

@@ -10,12 +10,14 @@ import itertools
 from agents.skill import SkillManager
 from agents.action import Actor
 from agents.critic import Critic
-from agents.experience import ExperienceTrace
+from agents.experience import AttemptTrace, InteractionTrace
+
+from utils.task_primitives import LoadedTask
 
 
 class CapOptioner:
     def __init__(self):
-        self.max_num_task_attempts = 10
+        self.max_num_task_attempts = 10  # not used for now... can use this when automating
 
         self.skill_manager = SkillManager()
         self.actor = Actor()
@@ -25,36 +27,45 @@ class CapOptioner:
         env = self.setup_environment()
 
         while True:
-            task = input(
+            task_string = input(
                 "\n\n\n"
                 + "I'm ready to take instructions."
                 + "\n"
                 + "Input your instruction:"
             )
 
-            self.attempt_task(env, task)
+            self.attempt_task(env, task_string)
 
-    def attempt_task(self, env, task):
-        self.actor.set_env_and_task(env, task)
+    def attempt_task(self, env: Environment, task_string: str):
+        self.actor.set_env_and_task(env, task_string)
 
-        initial_config = env.task.getCurrentConfiguration()
-        trace = ExperienceTrace(initial_config, task)
-
+        trace = InteractionTrace(task_string)
         feedback = None
-
-        for attempt_round in range(self.max_num_task_attempts):
+        while True:
+            initial_config = env.task.get_current_configuration(env)
+            print(initial_config)
             code_plan = self.actor.attempt_task(feedback)
+            final_config = env.task.get_current_configuration(env)
 
             feedback = input(
-                "How did I do? (type success or give a reason for failure)"
+                "How did I do? ('success', 'give-up', 'try-again', or give feedback)"
             )
+            attempt_trace = AttemptTrace(initial_config, code_plan, final_config, feedback)
 
-            trace.append(code_plan, feedback)
-            if feedback == "success":
-                trace.was_success(env.task.getCurrentConfiguration())
+            trace.add_attempt(attempt_trace)
+
+            # reset the environment to the exact same state
+            env.set_task(LoadedTask(initial_config))
+            env.reset()
+
+            if feedback == "success" or feedback == "give-up":
                 break
 
-        return False
+        env.set_task(ManyBlocksTask())
+        env.reset()
+        trace.dump()
+
+            
 
     def setup_environment(self) -> Environment:
         """handles the basic environment setup, primarily adding objects to the scene"""

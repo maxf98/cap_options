@@ -703,7 +703,7 @@ class Environment(gym.Env):
         pose = p.getBasePositionAndOrientation(obj_id)
         return pose[0], self.ignore_roll_pitch(pose[1])
 
-    def getBoundingBox(self, obj_id):
+    def get_bounding_box(self, obj_id):
         return p.getAABB(obj_id)
 
     """ ----------------------------------- CapRavens utils ------------------------------- """

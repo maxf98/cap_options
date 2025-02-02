@@ -11,11 +11,12 @@ class Actor:
     """
 
     def __init__(self):
-        self.messages = [{"role": "system", "content": actor_system_prompt}]
+        pass
 
     def set_env_and_task(self, env, task):
         self.task = task
         self.env = env
+        self.messages = [{"role": "system", "content": actor_system_prompt}]
         self.messages.append(
             {"role": "user", "content": generate_action_plan_prompt(task)}
         )
@@ -29,13 +30,14 @@ class Actor:
 
         # TODO: update prompt to use chain of thought... i.e. use more output tokens for same task
 
-        if feedback:
-            self.messages.append({"role": "user", "content": feedback})
+        # if try again, just run the last piece of code again...
+        if feedback != "try-again":
+            if feedback:
+                self.messages.append({"role": "user", "content": feedback})
+            response = query_llm(self.messages)
+            self.last_code_str = parse_code_response(response)
+            self.messages.append({"role": "assistant", "content": response})
 
-        response = query_llm(self.messages)
-        code_str = parse_code_response(response)
+        code_exec_with_bug_fix(self.last_code_str, self.env)
 
-        code_exec_with_bug_fix(code_str, self.env)
-
-        self.messages.append({"role": "assistant", "content": response})
-        return code_str
+        return self.last_code_str
