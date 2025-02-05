@@ -23,7 +23,6 @@ class Actor:
 
     def attempt_task(self, feedback=None):
         """where all the actual interaction logic should go...
-        Possible augmentations: chain-of-thought prompting, structured outputs, generalise to learn skills...
         feedback: str
             if task was previously attempted (unsuccessfully), add feedback from last round
         """

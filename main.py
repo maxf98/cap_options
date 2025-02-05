@@ -1,7 +1,4 @@
 from environments.environment import Environment
-from tasks.many_blocks import ManyBlocksTask
-from tasks.precision_cylinder_tower import PrecisionCylinderTower
-from tasks.assembling_kits import AssemblingKits
 
 from utils import core_types
 import numpy as np
@@ -10,24 +7,31 @@ import itertools
 from agents.skill import SkillManager
 from agents.action import Actor
 from agents.critic import Critic
-from agents.experience import AttemptTrace, InteractionTrace
+from agents.experience import AttemptTrace, InteractionTrace, ExperienceManager
 
-from utils.task_primitives import LoadedTask
+from tasks.task import Task
+from tasks.tasks.build_cube import BuildCubeCluttered
+from tasks.tasks.place_blocks import PlaceBlocks
+from tasks.tasks.checkerboard import BuildCheckerboard
+from tasks.tasks.jenga import JengaLayer
+from tasks.tasks.gripper_placement import GripperPlacement, GripperCircle
+from tasks.tasks.stack import Stack
+from tasks.tasks.scene_understanding import UnderstandBasicCommands
 
 
 class CapOptioner:
     def __init__(self):
-        self.max_num_task_attempts = 10  # not used for now... can use this when automating
 
         self.skill_manager = SkillManager()
         self.actor = Actor()
         self.critic = Critic()
+        self.experience_manager = ExperienceManager()
 
     def run(self):
         env = self.setup_environment()
 
         while True:
-            task_string = input(
+            task_string = env.task.lang_goal or input(
                 "\n\n\n"
                 + "I'm ready to take instructions."
                 + "\n"
@@ -39,33 +43,29 @@ class CapOptioner:
     def attempt_task(self, env: Environment, task_string: str):
         self.actor.set_env_and_task(env, task_string)
 
-        trace = InteractionTrace(task_string)
+        self.experience_manager.start_interaction(task_string)
         feedback = None
         while True:
             initial_config = env.task.get_current_configuration(env)
-            print(initial_config)
             code_plan = self.actor.attempt_task(feedback)
             final_config = env.task.get_current_configuration(env)
 
             feedback = input(
                 "How did I do? ('success', 'give-up', 'try-again', or give feedback)"
             )
-            attempt_trace = AttemptTrace(initial_config, code_plan, final_config, feedback)
+            attempt_trace = AttemptTrace(
+                initial_config, code_plan, final_config, feedback
+            )
 
-            trace.add_attempt(attempt_trace)
+            self.experience_manager.add_attempt(attempt_trace)
 
             # reset the environment to the exact same state
-            env.set_task(LoadedTask(initial_config))
             env.reset()
 
             if feedback == "success" or feedback == "give-up":
                 break
 
-        env.set_task(ManyBlocksTask())
-        env.reset()
-        trace.dump()
-
-            
+        self.experience_manager.wrap_up()
 
     def setup_environment(self) -> Environment:
         """handles the basic environment setup, primarily adding objects to the scene"""
@@ -85,7 +85,7 @@ class CapOptioner:
             },
         )
 
-        env.set_task(ManyBlocksTask())
+        env.set_task(UnderstandBasicCommands())
         env.reset()
 
         return env
@@ -95,9 +95,3 @@ if __name__ == "__main__":
     agent = CapOptioner()
 
     agent.run()
-    # code_env = agent.setup_code_environment()
-
-    # obj, objj = agent.wrapped_env.get_objects()[1], agent.wrapped_env.get_objects()[2]
-    # agent.wrapped_env.put_first_on_second(
-    #     agent.wrapped_env.get_object_pose(obj), agent.wrapped_env.get_object_pose(objj)
-    # )

@@ -50,6 +50,17 @@ class Pose:
     rotation: Rotation
 
 
+def _from_pybullet_pose(pose) -> Pose:
+    return Pose(
+        position=Point3D.from_xyz(pose[0]), rotation=Rotation.from_quat(pose[1])
+    )
+
+
+def _to_pybullet_pose(pose: Pose):
+    xyz = (pose.position.x, pose.position.y, pose.position.z)
+    return (xyz, pose.rotation.as_quat())
+
+
 @dataclass
 class AABBBoundingBox:
     """Axis-aligned bounding box, represented by two points
@@ -93,7 +104,3 @@ class Workspace:
     The robotic arm is positioned at the origin (0,0)"""
 
     bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.3]])
-    bottom_left = Point3D(0.25, -0.5, 0)
-    bottom_right = Point3D(0.25, 0.5, 0)
-    top_left = Point3D(0.75, -0.5, 0)
-    top_right = Point3D(0.75, 0.5, 0)

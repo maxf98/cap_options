@@ -13,6 +13,7 @@ import itertools
 
 from prompts.base_prompt import bug_fix_prompt
 from utils.llm_utils import query_llm, parse_code_response, extract_code
+from agents.skill import Skill
 
 
 def get_global_vars(env):
@@ -59,34 +60,3 @@ def code_exec_with_bug_fix(code_str, env, max_num_attempts=1):
                 return
         else:
             return
-
-
-def extract_functions(code_string):
-    # Parse the code string into an AST
-    tree = ast.parse(code_string)
-
-    # Extract all function definitions
-    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
-
-    # Convert the AST nodes back to code strings
-    extracted_functions = []
-    for func in functions:
-        # Use ast.get_source_segment to extract the function source code
-        func_source = ast.get_source_segment(code_string, func)
-        func_name = func.name
-        extracted_functions.append((func_name, func_source))
-
-    return extracted_functions
-
-
-code = """
-def mult(a, b):
-    return a*b
-    
-def add(a, b):
-    return a + b
-    """
-if __name__ == "__main__":
-
-
-    print(extract_functions(code))

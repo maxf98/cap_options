@@ -5,8 +5,13 @@ from PIL import Image
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 from utils.llm_utils import query_llm, query_llm_structured
+from dataclasses import dataclass
+import uuid
 
 import pydantic
+import ast
+
+from agents.experience import AttemptTrace
 
 
 from prompts.base_prompt import (
@@ -21,49 +26,28 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 ROOT_DIR = "/Users/maxfest/vscode/thesis/thesis/memory/skill_library/"
 
 
+@dataclass
 class Skill:
-    def __init__(self, name, description, skill_code, success_image, folder_name=None):
-        self.name = name
-        self.description = description
-        self.skill_code = skill_code
-        self.success_image = success_image
-
-        self.skill_dir = (
-            f"{ROOT_DIR}/skills/{name if folder_name is None else folder_name}"
-        )
-        os.makedirs(self.skill_dir, exist_ok=True)
-
-    def dump(self):
-        # we choose a readable storage method
-        with open(f"{self.skill_dir}/description.txt", "w") as file:
-            file.write(self.description)
-        with open(f"{self.skill_dir}/skill_code.py", "w") as file:
-            file.write(self.skill_code)
-
-        img = Image.fromarray(self.success_image)
-        img.save(f"{self.skill_dir}/success_image.jpg")
+    id = uuid.uuid4()
+    name: str
+    docstring: str
+    code: str
+    calls: list[str]  # these need to be names of other functions
+    # initially this will likely only be the id of the initial trace
+    # as we perform skill distillation, the length of this list should increase
+    trace_ids: list[uuid.uuid4] = []
 
     def __str__(self):
         return f"--- {self.name}: {self.description} ---"
 
-    @classmethod
-    def retrieve_skill_with_name(cls, name):
-        dir = f"{ROOT_DIR}/skills/{name}"
-        with open(f"{dir}/description.txt", "r") as file:
-            description = file.read()
-        with open(f"{dir}/skill_code.py", "r") as file:
-            skill_code = file.read()
-
-        success_image = Image.open(f"{dir}/success_image.jpg")
-
-        return Skill(name, description, skill_code, success_image)
+    def dump(self):
+        """store the skill in some readable way so we can inspect it..."""
+        pass
 
 
 class SkillManager:
-    def __init__(self, ckpt_dir=ROOT_DIR, reset=True):
+    def __init__(self, ckpt_dir=ROOT_DIR):
         self.ckpt_dir = ckpt_dir
-        if reset:
-            SkillManager.delete_skill_library(self.ckpt_dir)
 
         self.skill_dir = os.path.join(ckpt_dir, "skills")
         self.vector_db_dir = os.path.join(ckpt_dir, "vector_db")
@@ -99,58 +83,66 @@ class SkillManager:
     def num_skills(self):
         return self.vector_db.count()
 
-    def add_skill_to_library(self, task, skill_code, success_image):
-        skill_name, skill_description = self.generate_skill_name_and_description(
-            task, skill_code
-        )
+    def add_skills(self, attempt: AttemptTrace):
+        skills = SkillManager.extract_functions(attempt.code_string)
 
-        if skill_name in self.skills:
-            print(f"\033[33mSkill {skill_name} already exists. Rewriting!\033[0m")
-            self.vector_db.delete(ids=[skill_name])
-            i = 2
-            while f"{skill_name}V{i}.py" in os.listdir(
-                os.path.join(self.ckpt_dir, "skills")
-            ):
-                i += 1
-            dumped_skill_name = f"{skill_name}V{i}"
-        else:
-            dumped_skill_name = skill_name
+        # generate a description for each skill...
+        # we will see once we actually try running the clustering algorithm
+        # embedding directly might be better anyway...
+
+        for skill in skills:
+            skill.trace_ids.append(attempt.id)
+            id = f"{skill.name}-{attempt.id}"
+            self.vector_db.add(
+                documents=[skill.code],
+                ids=[id],
+                metadatas=[{"function_name": skill.name, "attempt_id": attempt.id}],
+            )
+
+            with open(f"{self.skill_dir}/{id}.py", "w") as file:
+                file.write(skill.code)
+
+    def add_skill_to_library(self, skill: Skill):
+        # skill_name, skill_description = self.generate_skill_name_and_description(
+        #     task, skill_code
+        # )
+
+        # if skill_name in self.skills:
+        #     print(f"\033[33mSkill {skill_name} already exists. Rewriting!\033[0m")
+        #     self.vector_db.delete(ids=[skill_name])
+        #     i = 2
+        #     while f"{skill_name}V{i}.py" in os.listdir(
+        #         os.path.join(self.ckpt_dir, "skills")
+        #     ):
+        #         i += 1
+        #     dumped_skill_name = f"{skill_name}V{i}"
+        # else:
+        #     dumped_skill_name = skill_name
 
         self.vector_db.add(
-            documents=[skill_description],
-            ids=[skill_name],
-            metadatas=[{"name": dumped_skill_name}],
-        )
-
-        skill = Skill(
-            skill_name,
-            skill_description,
-            skill_code,
-            success_image,
-            folder_name=dumped_skill_name,
+            documents=[skill.code],
+            ids=[skill.id],
+            metadatas=[{"name": skill.name, "description": skill.description}],
         )
         skill.dump()
 
-    def parse_skill_name(code):
-        return ""
+    # def generate_skill_name_and_description(self, task, skill_code):
+    #     print(f"\033[33mGenerating skill description...\033[0m")
 
-    def generate_skill_name_and_description(self, task, skill_code):
-        print(f"\033[33mGenerating skill description...\033[0m")
+    #     messages = [
+    #         {"role": "system", "content": skill_description_system_prompt},
+    #         {
+    #             "role": "user",
+    #             "content": generate_skill_description_prompt(skill_code, task),
+    #         },
+    #     ]
 
-        messages = [
-            {"role": "system", "content": skill_description_system_prompt},
-            {
-                "role": "user",
-                "content": generate_skill_description_prompt(skill_code, task),
-            },
-        ]
+    #     class GenerateSkillNameAndDescriptionReturn(pydantic.BaseModel):
+    #         name: str
+    #         description: str
 
-        class GenerateSkillNameAndDescriptionReturn(pydantic.BaseModel):
-            name: str
-            description: str
-
-        response = query_llm_structured(messages, GenerateSkillNameAndDescriptionReturn)
-        return response.name, response.description
+    #     response = query_llm_structured(messages, GenerateSkillNameAndDescriptionReturn)
+    #     return response.name, response.description
 
     def retrieve_skills(self, query):
         num_results = min(self.retrieval_top_k, self.vector_db.count())
@@ -161,6 +153,52 @@ class SkillManager:
             Skill.retrieve_skill_with_name(metadata[0]["name"])
             for metadata in results["metadatas"]
         ]
+
+    @staticmethod
+    def extract_functions(code_string) -> list[Skill]:
+        # Parse the code string into an AST
+        tree = ast.parse(code_string)
+
+        # Extract all function definitions
+        functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+
+        # Convert the AST nodes back to code strings
+        extracted_functions = []
+        for func in functions:
+            # Use ast.get_source_segment to extract the function source code
+            func_name = func.name
+            func_source = ast.get_source_segment(code_string, func)
+            doc_string = ast.get_docstring(func)
+            calls = SkillManager.find_called_functions(func)
+            extracted_functions.append(Skill(func_name, doc_string, func_source, calls))
+
+        return extracted_functions
+
+    @staticmethod
+    def find_called_functions(node):
+        called_functions = []
+
+        # Traverse the AST for Call nodes
+        for n in ast.walk(node):
+            if isinstance(n, ast.Call):
+                # Extract the function name
+                if isinstance(n.func, ast.Name):
+                    called_functions.append(n.func.id)
+                elif isinstance(n.func, ast.Attribute):
+                    called_functions.append(n.func.attr)
+
+        return called_functions
+
+
+code = """
+def mult(a, b):
+    print(a, b)
+    hello(42)
+    return a*b
+    """
+if __name__ == "__main__":
+    # print(extract_functions(code))
+    print(find_called_functions(ast.parse(code)))
 
 
 if __name__ == "__main__":
