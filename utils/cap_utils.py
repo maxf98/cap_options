@@ -13,7 +13,6 @@ import itertools
 
 from prompts.base_prompt import bug_fix_prompt
 from utils.llm_utils import query_llm, parse_code_response, extract_code
-from agents.skill import Skill
 
 
 def get_global_vars(env):

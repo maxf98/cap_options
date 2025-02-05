@@ -66,4 +66,4 @@ if __name__ == "__main__":
     # print("___________________")
     # print(get_core_types_text())
 
-    print(get_core_primitives_text())
+    print(get_core_types_text())

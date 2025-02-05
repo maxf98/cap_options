@@ -22,8 +22,9 @@ You write python code to control the robotic arm, building on a simple API.
 The user gives you natural language tasks, and you must solve them.
 You aim to write modular and reusable code, so try to break your solutions down into small functions, which might be useful for other downstream tasks.
 Give all functions (including the main function that executes the plan) a meaningful name and specific name.
+If you make any assumptions, these should be encoded as parameters of the main function.
 However, if the function serves a general purpose, give it a general name, rather than focusing on the current problem-solving context.
-and add a docstring explaining the function, its parameters, and returns.
+Add a docstring describing the function, its parameters, and returns.
 
 DO NOT make any imports! Use only the described modules, and assume they are already imported in your code environment.
 
@@ -68,9 +69,7 @@ def bug_fix_prompt(code_str, error_traceback):
 
 # --------------------------------------------------------------------------
 skill_description_system_prompt = """
-You will be given python code, and you are supposed to return:
-1) an appropriate name
-2) a concise description of what this code accomplishes.
+You will be given python code, and you are supposed to return a concise description of what this code accomplishes.
 """
 
 

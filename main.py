@@ -7,7 +7,7 @@ import itertools
 from agents.skill import SkillManager
 from agents.action import Actor
 from agents.critic import Critic
-from agents.experience import AttemptTrace, InteractionTrace, ExperienceManager
+from agents.experience import AttemptTrace, InteractionTrace
 
 from tasks.task import Task
 from tasks.tasks.build_cube import BuildCubeCluttered
@@ -25,7 +25,6 @@ class CapOptioner:
         self.skill_manager = SkillManager()
         self.actor = Actor()
         self.critic = Critic()
-        self.experience_manager = ExperienceManager()
 
     def run(self):
         env = self.setup_environment()
@@ -43,7 +42,7 @@ class CapOptioner:
     def attempt_task(self, env: Environment, task_string: str):
         self.actor.set_env_and_task(env, task_string)
 
-        self.experience_manager.start_interaction(task_string)
+        trace = InteractionTrace()
         feedback = None
         while True:
             initial_config = env.task.get_current_configuration(env)
@@ -57,15 +56,19 @@ class CapOptioner:
                 initial_config, code_plan, final_config, feedback
             )
 
-            self.experience_manager.add_attempt(attempt_trace)
+            trace.add_attempt(attempt_trace)
 
-            # reset the environment to the exact same state
+            if feedback == "success":
+                self.skill_manager.add_skills(attempt_trace)
+                trace.dump()
+
+                return True
+            elif feedback == "give-up":
+                trace.dump()
+                return False
+
             env.reset()
 
-            if feedback == "success" or feedback == "give-up":
-                break
-
-        self.experience_manager.wrap_up()
 
     def setup_environment(self) -> Environment:
         """handles the basic environment setup, primarily adding objects to the scene"""

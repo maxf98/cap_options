@@ -14,42 +14,20 @@ and for retrieval of few-shot examples
 import os
 import uuid
 import pickle
-from enum import Enum
 from datetime import datetime
 
-from utils.cap_utils import extract_functions
-from utils.llm_utils import query_llm_structured
-from utils import core_primitives
 from tasks.task import EnvironmentConfiguration
-
-from prompts.base_prompt import extract_insights_system_prompt, extract_insights_prompt
-
-import chromadb
-import chromadb.utils.embedding_functions as embedding_functions
-from pydantic import BaseModel
-
-from dataclasses import dataclass
 
 
 EXPERIENCE_DIR = "memory/trajectories"
-TRACES_DIR = os.path.join(EXPERIENCE_DIR, "traces")
-SKILLS_DIR = os.path.join(EXPERIENCE_DIR, "skills")
-# make sure the directories exist...
-os.makedirs(TRACES_DIR, exist_ok=True)
-os.makedirs(SKILLS_DIR, exist_ok=True)
+os.makedirs(EXPERIENCE_DIR, exist_ok=True)
 
-openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=os.getenv("OPENAI_API_KEY"), model_name="text-embedding-3-small"
-)
-
-
-@dataclass
 class AttemptTrace:
     initial_config: EnvironmentConfiguration
     code_string: str
     final_config: EnvironmentConfiguration
     feedback: str = None
-    id = uuid.uuid4()
+    id: int = None
 
     @property
     def is_success(self):
@@ -58,6 +36,15 @@ class AttemptTrace:
     @property
     def gave_feedback(self):
         return self.feedback not in ["success", "give-up", "try-again"]
+    
+    @staticmethod
+    def get_attempt_trace(id):
+        trace_id = id[:-1]
+        path = f"{EXPERIENCE_DIR}/{trace_id}.pkl"
+        if os.path.isfile(path):
+            with open(path, "rb") as file:
+                trace = pickle.load(file)
+                return trace.attempts[id[-1]]
 
 
 class InteractionTrace:
@@ -73,6 +60,10 @@ class InteractionTrace:
     this is more for future uses, e.g. checking the number of corrections required to get what you want
     """
 
+    """
+    TODO: fix the whole business with the ids... just feels off
+    """
+
     def __init__(self, task):
         self.id = uuid.uuid4()
         self.task = task
@@ -82,78 +73,42 @@ class InteractionTrace:
     @property
     def successful_attempt(self) -> AttemptTrace | None:
         return next((a for a in self.attempts if a.is_success), None)
+    
+    def add_attempt(self, attempt: AttemptTrace):
+        attempt.id = str(self.id) + str(self.attempts.count)
+        self.attempts.append(attempt)
 
     def dump(self):
-        with open(f"{TRACES_DIR}/{self.timestamp}.pkl", "wb") as file:
+        with open(f"{EXPERIENCE_DIR}/{self.id}.pkl", "wb") as file:
             pickle.dump(self, file)
 
 
-class ExperienceManager:
-    """
-    handles interpretation and manipulation of experience traces to turn them into skills or insights
-    insights may be viewed as general conditions on the robot behaviour
-    """
+# should we also store few-shot examples?
 
-    def __init__(self, skill_manager):
-        self.skill_manager = skill_manager
 
-    def start_interaction(self, task):
-        self.cur_interaction = InteractionTrace(task)
+# handle feedback in different ways - e.g. extract insights
+# if attempt.gave_feedback:
+#     messages = [
+#         {"role": "system", "content": extract_insights_system_prompt},
+#         {
+#             "role": "user",
+#             "content": extract_insights_prompt(
+#                 self.cur_interaction.task, attempt.code_string, attempt.feedback
+#             ),
+#         },
+#     ]
 
-    def add_attempt(self, attempt: AttemptTrace):
-        self.cur_interaction.attempts.append(attempt)
+#     class ExtractedInsights(BaseModel):
+#         produced_insight: bool
+#         insight: str
 
-        # handle feedback in different ways - e.g. extract insights
-        # if attempt.gave_feedback:
-        #     messages = [
-        #         {"role": "system", "content": extract_insights_system_prompt},
-        #         {
-        #             "role": "user",
-        #             "content": extract_insights_prompt(
-        #                 self.cur_interaction.task, attempt.code_string, attempt.feedback
-        #             ),
-        #         },
-        #     ]
+#     response = query_llm_structured(messages, ExtractedInsights)
 
-        #     class ExtractedInsights(BaseModel):
-        #         produced_insight: bool
-        #         insight: str
+#     if response.produced_insight:
+#         with open("memory/insights.txt", "a") as file:
+#             file.write(f"{response.insight}\n")
 
-        #     response = query_llm_structured(messages, ExtractedInsights)
 
-        #     if response.produced_insight:
-        #         with open("memory/insights.txt", "a") as file:
-        #             file.write(f"{response.insight}\n")
-
-    def wrap_up(self):
-        """store the trace, in case we want to use it later on
-        commit the preliminary skills to memory... or just commit them right away?
-        from successful traces?
-        need to keep mapping from skill to successful trace...
-        """
-        trace = self.cur_interaction
-
-        if trace.successful_attempt:
-            self.skill_manager.add_skills(attempt)
-            attempt = trace.successful_attempt
-            skills = extract_functions(attempt.code_string)
-
-            # generate a description for each skill...
-            # we will see once we actually try running the clustering algorithm
-            # embedding directly might be better anyway...
-
-            for skill in skills:
-                skill.trace_ids.append(attempt.id)
-                id = f"{skill.name}-{attempt.id}"
-                self.vector_db.add(
-                    documents=[skill.code],
-                    ids=[id],
-                    metadatas=[{"function_name": skill.name, "attempt_id": attempt.id}],
-                )
-
-                with open(f"{SKILLS_DIR}/{id}.py", "w") as file:
-                    file.write(skill.code)
-
-        trace.dump()  # in case we want to reuse later (for example to extract insights, common feedback, ...)
-
-        # should we also store few-shot examples?
+if __name__ == "__main__":
+    id = uuid.uuid4()
+    print(str(id) + 2)
