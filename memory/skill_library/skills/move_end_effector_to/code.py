@@ -1,5 +1,5 @@
 def move_end_effector_to(pose: Pose):
-    """moves the end effector from its current position to a given new position"""
+    """moves the end effector from its current Pose to a given new Pose"""
     ee_pose = get_end_effector_pose()
 
     max_steps = 100

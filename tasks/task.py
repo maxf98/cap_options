@@ -1,5 +1,13 @@
 from environments.task import Task
-from utils.core_types import TaskObject, Pose, _from_pybullet_pose, _to_pybullet_pose
+from utils.core_types import (
+    TaskObject,
+    Pose,
+    Point3D,
+    Rotation,
+    Workspace,
+    _from_pybullet_pose,
+    _to_pybullet_pose,
+)
 from environments.environment import Environment
 import pybullet as p
 
@@ -9,6 +17,8 @@ import random
 import uuid
 
 import utils.general_utils as utils
+
+import numpy as np
 
 
 class EnvironmentConfiguration:
@@ -74,11 +84,21 @@ class Task(Task):
         num_blocks: int = 20,
         color=None,
         size: tuple[float, float, float] = (0.04, 0.04, 0.04),
+        collision_free: bool = True,
     ):
         for _ in range(num_blocks):
             self.add_block(
-                env, color=color or random.choice(list(utils.COLORS.keys())), size=size
+                env,
+                color=color or random.choice(list(utils.COLORS.keys())),
+                size=size,
+                collision_free=collision_free,
             )
+
+        # might cause some issues with blocks flying everywhere...
+        if not collision_free:
+            for _ in range(500):
+                p.stepSimulation()
+                time.sleep(1 / 400)
 
     def add_block(
         self,
@@ -86,12 +106,18 @@ class Task(Task):
         color: str,
         size: tuple[float, float, float] = (0.04, 0.04, 0.04),
         pose: Pose = None,
+        collision_free: bool = True,
     ):
         block_urdf = "box/box-template.urdf"
 
-        block_pose = (
-            self.get_random_pose(env, size) if pose is None else _to_pybullet_pose(pose)
-        )
+        if collision_free:
+            block_pose = (
+                self.get_random_pose(env, size)
+                if pose is None
+                else _to_pybullet_pose(pose)
+            )
+        else:
+            block_pose = _to_pybullet_pose(self.get_random_pose_not_collision_free())
 
         sized_block_urdf = self.fill_template(block_urdf, {"DIM": size})
         block_id = env.add_object(sized_block_urdf, block_pose, color=color)
@@ -102,6 +128,51 @@ class Task(Task):
         )
 
         self.taskObjects.append(task_obj)
+
+    def add_zone(
+        self,
+        env: Environment,
+        color: str,
+        size: tuple[float, float, float] = (0.1, 0.1, 0.01),
+    ):
+        zone_pose = self.get_random_pose(env, size)
+        zone_id = env.add_object(
+            "zone/zone.urdf", zone_pose, "fixed", scale=1, color=color
+        )
+
+        task_obj = TaskObject(
+            objectType="zone", color=color, id=zone_id, category="fixed", size=size
+        )
+        self.taskObjects.append(task_obj)
+
+    def add_pallet(self, env: Environment):
+        pallet_size = (0.2, 0.2, 0.02)
+        pallet_pose = self.get_random_pose(env, pallet_size)
+        pallet_urdf = "pallet/pallet.urdf"
+        pallet_id = env.add_object(pallet_urdf, pallet_pose, category="fixed")
+
+        task_obj = TaskObject(
+            objectType="pallet",
+            color="brown",
+            id=pallet_id,
+            category="fixed",
+            size=pallet_size,
+        )
+        self.taskObjects.append(task_obj)
+
+    def get_random_pose_not_collision_free(self) -> Pose:
+        def random_in_range(low, high):
+            return np.random.uniform(low, high)
+
+        pos = [
+            random_in_range(Workspace.bounds[0][0], Workspace.bounds[0][1]),
+            random_in_range(Workspace.bounds[1][0], Workspace.bounds[1][1]),
+            random_in_range(Workspace.bounds[2][0], Workspace.bounds[2][1]),
+        ]
+        theta = np.random.rand() * 2 * np.pi
+        rot = utils.eulerXYZ_to_quatXYZW((0, 0, theta))
+
+        return Pose(Point3D.from_xyz(pos), Rotation.from_quat(rot))
 
     def get_current_configuration(self, env: Environment) -> EnvironmentConfiguration:
         """gets all the objects and their properties, so we can reinitialise the scene..."""

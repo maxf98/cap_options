@@ -17,11 +17,14 @@ import pickle
 from datetime import datetime
 
 from tasks.task import EnvironmentConfiguration
+from dataclasses import dataclass
 
 
 EXPERIENCE_DIR = "memory/trajectories"
 os.makedirs(EXPERIENCE_DIR, exist_ok=True)
 
+
+@dataclass
 class AttemptTrace:
     initial_config: EnvironmentConfiguration
     code_string: str
@@ -36,7 +39,7 @@ class AttemptTrace:
     @property
     def gave_feedback(self):
         return self.feedback not in ["success", "give-up", "try-again"]
-    
+
     @staticmethod
     def get_attempt_trace(id):
         trace_id = id[:-1]
@@ -62,6 +65,8 @@ class InteractionTrace:
 
     """
     TODO: fix the whole business with the ids... just feels off
+    technically we could also use chroma for these traces, comes with functions for filtering e.g. by "is_success" or search by id
+    will likely not become necessary
     """
 
     def __init__(self, task):
@@ -73,7 +78,7 @@ class InteractionTrace:
     @property
     def successful_attempt(self) -> AttemptTrace | None:
         return next((a for a in self.attempts if a.is_success), None)
-    
+
     def add_attempt(self, attempt: AttemptTrace):
         attempt.id = str(self.id) + str(self.attempts.count)
         self.attempts.append(attempt)
@@ -81,6 +86,20 @@ class InteractionTrace:
     def dump(self):
         with open(f"{EXPERIENCE_DIR}/{self.id}.pkl", "wb") as file:
             pickle.dump(self, file)
+
+    @staticmethod
+    def get_all_traces() -> list["InteractionTrace"]:
+        traces = []
+        for pickle_file in os.listdir(EXPERIENCE_DIR):
+            with open(f"{EXPERIENCE_DIR}/{pickle_file}", "rb") as file:
+                trace = pickle.load(file)
+                traces.append(trace)
+        return traces
+
+
+if __name__ == "__main__":
+    id = uuid.uuid4()
+    print(str(id) + 2)
 
 
 # should we also store few-shot examples?
@@ -107,8 +126,3 @@ class InteractionTrace:
 #     if response.produced_insight:
 #         with open("memory/insights.txt", "a") as file:
 #             file.write(f"{response.insight}\n")
-
-
-if __name__ == "__main__":
-    id = uuid.uuid4()
-    print(str(id) + 2)

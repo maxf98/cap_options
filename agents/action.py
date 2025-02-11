@@ -1,8 +1,11 @@
 from utils.llm_utils import query_llm, parse_code_response
 from utils.cap_utils import code_exec_with_bug_fix
-from prompts.base_prompt import actor_system_prompt, generate_action_plan_prompt
+from prompts.actor import actor_system_prompt, actor_prompt, actor_iteration_prompt
 
-from agents.skill import Skill
+from agents.skill import Skill, SkillManager
+
+import tiktoken
+
 
 class Actor:
     """
@@ -11,16 +14,21 @@ class Actor:
     actually not completely sure what this class should contain right now...
     """
 
-    def __init__(self, skill_manager=None):
+    def __init__(self, skill_manager: SkillManager = None):
         self.skill_manager = skill_manager
 
     def set_env_and_task(self, env, task):
         self.task = task
         self.env = env
         self.messages = [{"role": "system", "content": actor_system_prompt}]
-        self.messages.append(
-            {"role": "user", "content": generate_action_plan_prompt(task)}
-        )
+        skills = self.retrieve_skill_string(self.task)
+        print(skills)
+        encoding = tiktoken.get_encoding("o200k_base")
+        num_tokensa = len(encoding.encode(actor_system_prompt))
+        ap = actor_prompt(task, skills)
+        num_tokensb = len(encoding.encode(ap))
+        print(num_tokensa + num_tokensb)
+        self.messages.append({"role": "user", "content": actor_prompt(task, skills)})
 
     def attempt_task(self, feedback=None):
         """where all the actual interaction logic should go...
@@ -33,11 +41,10 @@ class Actor:
 
         # if try again, just run the last piece of code again...
         if feedback != "try-again":
-
-            skills = self.retrieve_skills(self.task, feedback)
-
             if feedback:
-                self.messages.append({"role": "user", "content": feedback})
+                self.messages.append(
+                    {"role": "user", "content": actor_iteration_prompt(feedback)}
+                )
             response = query_llm(self.messages)
             self.last_code_str = parse_code_response(response)
             self.messages.append({"role": "assistant", "content": response})
@@ -46,11 +53,14 @@ class Actor:
 
         return self.last_code_str
 
-    def retrieve_skill_string(self, task, feedback) -> str:
+    def retrieve_skill_string(self, task) -> str:
         """format query for retrieval from vector database
-        simplest approach is to use the task as a query, adding on the 
+        simplest approach is to use the task as a query and retrieve codes similar
         """
 
         if self.skill_manager is None:
-            return 
-        
+            return ""
+
+        skills = self.skill_manager.retrieve_skills(task)
+        skill_string = ("\n\n").join([str(skill) for skill in skills])
+        return skill_string

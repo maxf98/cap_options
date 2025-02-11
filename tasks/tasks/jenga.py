@@ -1,6 +1,17 @@
 from tasks.task import Task
 
 
+class PlaceTwoBlocksLengthwise(Task):
+    def __init__(self):
+        super().__init__()
+        self.lang_goal = "align the two blocks lengthwise, i.e. place them next to each other such that the longer sides of the blocks are touching each other"
+
+    def reset(self, env):
+        super().reset(env)
+
+        self.add_blocks(env, 2, "brown", size=(0.09, 0.03, 0.02))
+
+
 class JengaLayer(Task):
     def __init__(self):
         super().__init__()

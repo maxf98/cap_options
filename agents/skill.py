@@ -23,18 +23,10 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 
 ROOT_DIR = "/Users/maxfest/vscode/thesis/thesis/memory/skill_library/"
 SKILL_DIR = f"{ROOT_DIR}/skills"
-os.makedirs(SKILL_DIR, exist_ok=True)
 
 
 class Skill:
-    name: str  # name should be unique in global namespace, so serves as id...
-    docstring: str
-    code: str
-    # initially this will likely only be the id of the initial trace
-    # as we perform skill distillation, the length of this list should increase
-    trace_ids: list[str] = []
-
-    def __init__(self, name, docstring, code, trace_ids = [], is_core_primitive=False):
+    def __init__(self, name, docstring, code, trace_ids=[], is_core_primitive=False):
         self.name = name
         self.docstring = docstring
         self.code = code
@@ -46,30 +38,37 @@ class Skill:
         return f"{SKILL_DIR}/{self.name}"
 
     def __str__(self):
-        return f"--- {self.name}: {self.docstring} ---"
+        # return f"{self.code.splitlines()[0]}\n{self.docstring}"
+        return self.code
 
     def dump(self):
         """store the skill in some readable way so we can inspect it..."""
         os.makedirs(self.save_dir, exist_ok=True)
         with open(f"{self.save_dir}/code.py", "w") as file:
             file.write(self.code)
-        with open(f"{self.save_dir}/trace_ids.pkl", "wb") as file:
-            pickle.dump(self.trace_ids, file)
+        with open(f"{self.save_dir}/skill.pkl", "wb") as file:
+            pickle.dump(self, file)
 
     @staticmethod
     def retrieve_skill_with_name(name) -> "Skill":
-        with open(f"{SKILL_DIR}/{name}/code.py", "r") as file:
-            skill_code = file.read()
-        with open(f"{SKILL_DIR}/{name}/code.py", "rb") as file:
-            trace_ids = pickle.load(file)
-        
-        skill = Skill.parse_function_string(skill_code)
-        skill.trace_ids = trace_ids
+        # with open(f"{SKILL_DIR}/{name}/code.py", "r") as file:
+        #     skill_code = file.read()
+        with open(f"{SKILL_DIR}/{name}/skill.pkl", "rb") as file:
+            skill = pickle.load(file)
+
         return skill
-    
+
     @staticmethod
     def parse_function_string(code_string: str) -> "Skill":
-        func = ast.parse(code_string).body[0]  # we assume that the string only contains a single function
+        # we assume that the string only contains a single function
+        tree = ast.parse(code_string)
+        func_defs = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+        if len(func_defs) != 1:
+            print(
+                f"not exactly one ({len(func_defs)} - {func_defs}) function defined in code string:\n{code_string}"
+            )
+
+        func = func_defs[0]
         func_name = func.name
         func_source = ast.get_source_segment(code_string, func)
         doc_string = ast.get_docstring(func)
@@ -77,36 +76,15 @@ class Skill:
         return Skill(func_name, doc_string, func_source)
 
     @property
-    def called_functions(self) -> list[str]:
-        if self.is_core_primitive:
-            return []
-        
-        node = ast.parse(self.code).body[0]  # we assume that the string only contains a single function
-
-        called_functions = []
-
-        # Traverse the AST for Call nodes
-        for n in ast.walk(node):
-            if isinstance(n, ast.Call):
-                # Extract the function name
-                if isinstance(n.func, ast.Name):
-                    called_functions.append(n.func.id)
-                elif isinstance(n.func, ast.Attribute):
-                    called_functions.append(n.func.attr)
-
-        return called_functions
-    
-    @property
     def traces(self):
         return [AttemptTrace.get_attempt_trace(id) for id in self.trace_ids]
+
 
 class SkillManager:
     vector_db_dir = os.path.join(ROOT_DIR, "vector_db")
 
     def __init__(self):
         os.makedirs(self.vector_db_dir, exist_ok=True)
-
-        self.retrieval_top_k = 10
 
         chroma_client = chromadb.PersistentClient(path=SkillManager.vector_db_dir)
         self.vector_db = chroma_client.get_or_create_collection(
@@ -122,8 +100,11 @@ class SkillManager:
             print(f"an error occurred {e}")
 
     def add_core_primitives_to_library(self):
+        os.makedirs(SKILL_DIR, exist_ok=True)
+
         # only for retrieval purposes... functions are still actually called from core_primitives module
         from utils import core_primitives
+
         functions = inspect.getmembers(core_primitives, inspect.isfunction)
         for name, func in functions:
             if name not in core_primitives.__all__:
@@ -134,16 +115,17 @@ class SkillManager:
             if path in os.listdir(SKILL_DIR):
                 self.vector_db.delete(ids=[name])
                 shutil.rmtree(path)
-            
-            skill = Skill(name=name, docstring=inspect.getdoc(func), code=inspect.getsource(func), is_core_primitive=True)
+
+            skill = Skill(
+                name=name,
+                docstring=inspect.getdoc(func),
+                code=inspect.getsource(func),
+                is_core_primitive=True,
+            )
             self.add_skill_to_library(skill)
-       
 
     @property
-    def skills(self) -> list[Skill]:
-        # TODO: actually print out all the programs available to the agent here...
-        # this should only print action-related skills... - verification code?
-        # should also retrieve core primitives...
+    def all_skills(self) -> list[Skill]:
         all_keys = [metadata["name"] for metadata in self.vector_db.get()["metadatas"]]
         skills = [Skill.retrieve_skill_with_name(name) for name in all_keys]
         return skills
@@ -154,11 +136,12 @@ class SkillManager:
 
     def add_skills(self, attempt: AttemptTrace):
         """extract skills from a (successful) attempt trace"""
-        skills = SkillManager.extract_functions_from_string(attempt.code_string)
-
-        for skill in skills:
+        tree = ast.parse(attempt.code_string)
+        nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+        for node in nodes:
+            skill_str = ast.get_source_segment(attempt.code_string, node)
+            skill = Skill.parse_function_string(skill_str)
             skill.trace_ids.append(attempt.id)
-            
             self.add_skill_to_library(skill)
 
     def add_skill_to_library(self, skill: Skill):
@@ -175,7 +158,9 @@ class SkillManager:
         self.vector_db.add(
             documents=[skill.docstring],
             ids=[skill.name],
-            metadatas=[{"name": skill.name}],
+            metadatas=[
+                {"name": skill.name, "is_core_primitive": skill.is_core_primitive}
+            ],
         )
         skill.dump()
 
@@ -195,14 +180,28 @@ class SkillManager:
 
     def retrieve_skills(self, query):
         """simplest retrieval tactic: query is a task"""
-        num_results = min(self.retrieval_top_k, self.vector_db.count())
-        results = self.vector_db.query(query_texts=[query], n_results=num_results)
+        RETRIEVAL_TOP_K = 100
 
+        num_results = min(RETRIEVAL_TOP_K, self.vector_db.count())
+        results = self.vector_db.query(
+            query_texts=[query],
+            n_results=num_results,
+            # where={"is_core_primitive": True},
+        )
+
+        names = [metadata["name"] for metadata in results["metadatas"][0]]
         # get skill objects matching with the retrieved docs
-        return [
-            Skill.retrieve_skill_with_name(metadata[0]["name"])
-            for metadata in results["metadatas"]
-        ]
+        return [Skill.retrieve_skill_with_name(name) for name in names]
+
+    def get_all_skill_embeddings(self):
+        results = self.vector_db.get(
+            include=["embeddings"],
+            where={
+                "is_core_primitive": False
+            },  # we don't want to cluster/rewrite core primitives - they are simply given...
+        )
+
+        return (results["ids"], results["embeddings"])
 
 
 code = """
@@ -213,9 +212,14 @@ def mult(a, b):
     """
 
 if __name__ == "__main__":
-    skill_manager = SkillManager()
-
-    skill_manager.add_core_primitives_to_library()
+    # SkillManager.delete_skill_library()
+    # skill_manager = SkillManager()
+    # skill_manager.add_core_primitives_to_library()
+    pass
+    # skill_manager = SkillManager()
+    # print(skill_manager.get_all_skill_embeddings())
+    # skills = skill_manager.retrieve_skills("build a cube")
+    # print([skill.name for skill in skill_manager.all_skills])
 
     # print(skill_manager.skills)
     # print(skill_manager.num_skills)

@@ -9,44 +9,54 @@ from agents.action import Actor
 from agents.critic import Critic
 from agents.experience import AttemptTrace, InteractionTrace
 
+
 from tasks.task import Task
-from tasks.tasks.build_cube import BuildCubeCluttered
-from tasks.tasks.place_blocks import PlaceBlocks
+from tasks.tasks.build_cube import (
+    BuildBig3Cube,
+    BuildBig4Cube,
+    BuildCube,
+    BuildCubeCluttered,
+)
+from tasks.tasks.place_blocks import Place2Blocks, Place4BlocksInLine, Place5Blocks
 from tasks.tasks.checkerboard import BuildCheckerboard
-from tasks.tasks.jenga import JengaLayer
+from tasks.tasks.jenga import JengaLayer, PlaceTwoBlocksLengthwise
 from tasks.tasks.gripper_placement import GripperPlacement, GripperCircle
 from tasks.tasks.stack import Stack
 from tasks.tasks.scene_understanding import UnderstandBasicCommands
+from tasks.tasks.clear_area import ClearAreaPallet, ClearAreaZone, ClearAreaSemantic
 
 
 class CapOptioner:
-    def __init__(self):
+    def __init__(self, debugging=False):
 
         self.skill_manager = SkillManager()
-        self.actor = Actor()
-        self.critic = Critic()
+        self.actor = Actor(skill_manager=self.skill_manager)
+
+        self.debugging = debugging
 
     def run(self):
         env = self.setup_environment()
 
-        while True:
-            task_string = env.task.lang_goal or input(
-                "\n\n\n"
-                + "I'm ready to take instructions."
-                + "\n"
-                + "Input your instruction:"
-            )
+        task_string = env.task.lang_goal or input(
+            "\n\n\n"
+            + "I'm ready to take instructions."
+            + "\n"
+            + "Input your instruction:"
+        )
 
-            self.attempt_task(env, task_string)
+        self.attempt_task(env, task_string)
 
     def attempt_task(self, env: Environment, task_string: str):
         self.actor.set_env_and_task(env, task_string)
 
-        trace = InteractionTrace()
+        trace = InteractionTrace(task_string)
         feedback = None
         while True:
             initial_config = env.task.get_current_configuration(env)
-            code_plan = self.actor.attempt_task(feedback)
+            try:
+                code_plan = self.actor.attempt_task(feedback)
+            except KeyboardInterrupt:
+                print("interrupted")
             final_config = env.task.get_current_configuration(env)
 
             feedback = input(
@@ -58,17 +68,18 @@ class CapOptioner:
 
             trace.add_attempt(attempt_trace)
 
-            if feedback == "success":
-                self.skill_manager.add_skills(attempt_trace)
-                trace.dump()
-
-                return True
-            elif feedback == "give-up":
-                trace.dump()
-                return False
+            match feedback:
+                case "success":
+                    if not self.debugging:
+                        self.skill_manager.add_skills(attempt_trace)
+                        trace.dump()
+                    return True
+                case "give-up":
+                    if not self.debugging:
+                        trace.dump()
+                    return False
 
             env.reset()
-
 
     def setup_environment(self) -> Environment:
         """handles the basic environment setup, primarily adding objects to the scene"""
@@ -88,13 +99,22 @@ class CapOptioner:
             },
         )
 
-        env.set_task(UnderstandBasicCommands())
+        env.set_task(Place5Blocks())
         env.reset()
 
         return env
 
 
+def reset_skill_library():
+    """for some reason we need to do this in the root file, otherwise something doesn't work with pickling"""
+    SkillManager.delete_skill_library()
+    skill_manager = SkillManager()
+    skill_manager.add_core_primitives_to_library()
+
+
 if __name__ == "__main__":
-    agent = CapOptioner()
+    agent = CapOptioner(debugging=False)
 
     agent.run()
+
+    # reset_skill_library()

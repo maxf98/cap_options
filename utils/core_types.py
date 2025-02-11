@@ -65,8 +65,7 @@ def _to_pybullet_pose(pose: Pose):
 class AABBBoundingBox:
     """Axis-aligned bounding box, represented by two points
     If the contained object is rotated on the x-y plane, the bounding box is larger than the object
-    Particularly, the corners of the bounding box do not correspond to the corners of the object...
-    (could take this out to be fair...)
+    Particularly, the corners of the bounding box do NOT correspond to the corners of the object...
     """
 
     minPoint: Point3D
