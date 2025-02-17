@@ -82,29 +82,6 @@
 #     return new_fs, srcs
 
 
-# class FunctionParser(ast.NodeTransformer):
-#     def __init__(self, fs, f_assigns):
-#         super().__init__()
-#         self._fs = fs
-#         self._f_assigns = f_assigns
-
-#     def visit_Call(self, node):
-#         self.generic_visit(node)
-#         if isinstance(node.func, ast.Name):
-#             f_sig = ast.unparse(node).strip()
-#             f_name = ast.unparse(node.func).strip()
-#             self._fs[f_name] = f_sig
-#         return node
-
-#     def visit_Assign(self, node):
-#         self.generic_visit(node)
-#         if isinstance(node.value, ast.Call):
-#             assign_str = ast.unparse(node).strip()
-#             f_name = ast.unparse(node.value.func).strip()
-#             self._f_assigns[f_name] = assign_str
-#         return node
-
-
 # def merge_dicts(dicts):
 #     return {k: v for d in dicts for k, v in d.items()}
 

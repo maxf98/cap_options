@@ -31,9 +31,9 @@ IMPORTANT
 #         "video_width": 720,
 #     },
 # )
-# from tasks.task import Task
+# from tasks.tasks.place_blocks import Place5Blocks
 
-# env.set_task(Task())
+# env.set_task(Place5Blocks())
 # env.reset()
 """-----------------------------------------------------------------------------"""
 
@@ -44,8 +44,9 @@ __all__ = [
     "get_end_effector_pose",
     "put_first_on_second",
     "say",
-    "move_end_effector_to",
+    # "move_end_effector_to",
     "get_bbox",
+    "get_point_at_distance_and_rotation_from_point",
 ]
 
 
@@ -71,22 +72,22 @@ def get_objects() -> list[TaskObject]:
     return env.task.taskObjects
 
 
-def move_end_effector_to(pose: Pose):
-    """moves the end effector from its current Pose to a given new Pose"""
-    ee_pose = get_end_effector_pose()
+# def move_end_effector_to(pose: Pose):
+#     """moves the end effector from its current Pose to a given new Pose"""
+#     ee_pose = get_end_effector_pose()
 
-    max_steps = 100
-    step = 0
-    while (
-        not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
-        or not np.allclose(
-            pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
-        )
-    ) and step < max_steps:
-        env.movep(_to_pybullet_pose(pose), speed=0.0005)
-        env.step_simulation()
-        ee_pose = get_end_effector_pose()
-        step += 1
+#     max_steps = 100
+#     step = 0
+#     while (
+#         not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
+#         or not np.allclose(
+#             pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
+#         )
+#     ) and step < max_steps:
+#         env.movep(_to_pybullet_pose(pose), speed=0.0005)
+#         env.step_simulation()
+#         ee_pose = get_end_effector_pose()
+#         step += 1
 
 
 def put_first_on_second(pickPose: Pose, placePose: Pose):
@@ -103,6 +104,19 @@ def put_first_on_second(pickPose: Pose, placePose: Pose):
     )
 
 
+def get_point_at_distance_and_rotation_from_point(
+    point: Point3D, rotation: Rotation, distance: float, direction=np.array([1, 0, 0])
+) -> Point3D:
+    """compute a point that is at a specific 'distance' from 'point', at a specified 'rotation'
+    The direction specifies the base direction in which to apply the rotation.
+    This is useful for placing objects relative to other objects.
+    """
+
+    rotated_direction = rotation.apply(direction)
+    new_point = point.np_vec + distance * rotated_direction
+    return Point3D.from_xyz(new_point)
+
+
 def say(msg: str):
     """prints a message for the user to the terminal"""
     msg = f"robot says: {msg}"
@@ -114,29 +128,21 @@ if __name__ == "__main__":
 
     import time
 
-    move_end_effector_to(
-        Pose(
-            position=Point3D(0.3, 0.3, 0.3),
-            rotation=Rotation.from_euler("xyz", [0, 0, 0]),
-        )
-    )
+    # blockA = get_objects()[0]
+    # blockB = get_objects()[1]
+    # blockC = get_objects()[2]
 
-    time.sleep(2)
+    # pose = get_object_pose(blockA)
 
-    move_end_effector_to(
-        Pose(
-            position=Point3D(0.5, 0.1, 0.1),
-            rotation=Rotation.from_euler("xyz", [0, 45, 0]),
-        )
-    )
+    # new_pos = get_point_at_distance_and_rotation_from_point(
+    #     pose.position, pose.rotation, blockA.size[0] + 0.005
+    # )
+    # new_pose = Pose(new_pos, pose.rotation)
 
-    time.sleep(2)
+    # put_first_on_second(get_object_pose(blockB), new_pose)
 
-    move_end_effector_to(
-        Pose(
-            position=Point3D(0.5, 0.1, 0.3),
-            rotation=Rotation.from_euler("xyz", [0, -45, 0]),
-        )
-    )
-
-    time.sleep(2)
+    # other_new_pos = get_point_at_distance_and_rotation_from_point(
+    #     pose.position, pose.rotation, blockA.size[0] + 0.005, direction=[0, 1, 0]
+    # )
+    # other_new_pose = Pose(other_new_pos, pose.rotation)
+    # put_first_on_second(get_object_pose(blockC), other_new_pose)

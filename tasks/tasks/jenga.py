@@ -4,7 +4,29 @@ from tasks.task import Task
 class PlaceTwoBlocksLengthwise(Task):
     def __init__(self):
         super().__init__()
-        self.lang_goal = "align the two blocks lengthwise, i.e. place them next to each other such that the longer sides of the blocks are touching each other"
+        self.lang_goal = "place one block next to the other, such that their longer sides are touching."
+
+    def reset(self, env):
+        super().reset(env)
+
+        self.add_blocks(env, 2, "brown", size=(0.09, 0.03, 0.02))
+
+
+class PlaceThreeBlocksLengthwise(Task):
+    def __init__(self):
+        super().__init__()
+        self.lang_goal = "align the three blocks lengthwise, i.e. place them next to each other such that the longer sides of the blocks are touching each other"
+
+    def reset(self, env):
+        super().reset(env)
+
+        self.add_blocks(env, 3, "brown", size=(0.09, 0.03, 0.02))
+
+
+class PlaceTwoBlocksShortwise(Task):
+    def __init__(self):
+        super().__init__()
+        self.lang_goal = "align the two blocks such that the shorter sides of the blocks are touching each other"
 
     def reset(self, env):
         super().reset(env)

@@ -1,4 +1,4 @@
-from tasks.task_primitives import Task
+from tasks.task import Task
 
 
 class TaskAgent:

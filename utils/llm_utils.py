@@ -17,19 +17,19 @@ api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
 
 
-TEMPERATURE = 0
-MODEL = "gpt-4o"
-MAX_TOKENS = 3000
+def query_llm(messages, model="gpt-4o"):
+    new_messages = []
+    for message in messages:
+        if message["role"] == "system":
+            new_messages.append({"role": "user", "content": message["content"]})
+        else:
+            new_messages.append(message)
 
-
-def query_llm(messages):
     while True:
         try:
             response = client.chat.completions.create(
-                messages=messages,
-                temperature=TEMPERATURE,
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
+                messages=new_messages,
+                model=model,
             )
             response = response.choices[0].message.content
             break
@@ -47,9 +47,7 @@ def query_llm_structured(messages, response_format):
         try:
             response = client.beta.chat.completions.parse(
                 messages=messages,
-                temperature=TEMPERATURE,
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
+                model="gpt-4o",
                 response_format=response_format,
             )
             response = response.choices[0].message.parsed
@@ -121,19 +119,3 @@ def encode_image(image_source):
 
 if __name__ == "__main__":
     import pydantic
-
-    class Ret(pydantic.BaseModel):
-        statement_is_true: bool
-        reasoning: str
-
-    resp = query_llm_structured(
-        messages=[
-            {
-                "role": "user",
-                "content": "evaluate this statement: all humans have 10 fingers",
-            }
-        ],
-        response_format=Ret,
-    )
-
-    print(resp)

@@ -62,8 +62,6 @@ def extract_functions(filepath):
 
 
 if __name__ == "__main__":
-    # print(get_core_primitives_text())
-    # print("___________________")
-    # print(get_core_types_text())
-
+    print(get_core_primitives_text())
+    print("___________________")
     print(get_core_types_text())

@@ -1,12 +1,7 @@
 from environments.environment import Environment
 
-from utils import core_types
-import numpy as np
-import itertools
-
 from agents.skill import SkillManager
 from agents.action import Actor
-from agents.critic import Critic
 from agents.experience import AttemptTrace, InteractionTrace
 
 
@@ -16,14 +11,32 @@ from tasks.tasks.build_cube import (
     BuildBig4Cube,
     BuildCube,
     BuildCubeCluttered,
+    BuildCubeInZone,
 )
-from tasks.tasks.place_blocks import Place2Blocks, Place4BlocksInLine, Place5Blocks
+from tasks.tasks.place_blocks import (
+    Place2Blocks,
+    Place4BlocksInLine,
+    Place5Blocks,
+    PlaceBlockInZone,
+    PlaceBlockMiddleLeft,
+)
 from tasks.tasks.checkerboard import BuildCheckerboard
-from tasks.tasks.jenga import JengaLayer, PlaceTwoBlocksLengthwise
+from tasks.tasks.jenga import (
+    JengaLayer,
+    PlaceTwoBlocksLengthwise,
+    Jenga,
+    PlaceThreeBlocksLengthwise,
+    PlaceTwoBlocksShortwise,
+)
 from tasks.tasks.gripper_placement import GripperPlacement, GripperCircle
 from tasks.tasks.stack import Stack
 from tasks.tasks.scene_understanding import UnderstandBasicCommands
 from tasks.tasks.clear_area import ClearAreaPallet, ClearAreaZone, ClearAreaSemantic
+from tasks.tasks.reactive_policy import (
+    PlaceCubeInClutteredEnvironment,
+    PickBlockUnderOtherBlock,
+    NonPlanarBlock,
+)
 
 
 class CapOptioner:
@@ -47,20 +60,19 @@ class CapOptioner:
         self.attempt_task(env, task_string)
 
     def attempt_task(self, env: Environment, task_string: str):
-        self.actor.set_env_and_task(env, task_string)
-
         trace = InteractionTrace(task_string)
         feedback = None
         while True:
             initial_config = env.task.get_current_configuration(env)
-            try:
-                code_plan = self.actor.attempt_task(feedback)
-            except KeyboardInterrupt:
-                print("interrupted")
+            code_plan = (
+                self.actor.attempt_task(task=task_string, env=env)
+                if feedback is None
+                else self.actor.revise_code_with_feedback(feedback)
+            )
             final_config = env.task.get_current_configuration(env)
 
             feedback = input(
-                "How did I do? ('success', 'give-up', 'try-again', or give feedback)"
+                "How did I do? ('success', 'give-up', 'try-again', 'abort', or give feedback)"
             )
             attempt_trace = AttemptTrace(
                 initial_config, code_plan, final_config, feedback
@@ -71,15 +83,17 @@ class CapOptioner:
             match feedback:
                 case "success":
                     if not self.debugging:
-                        self.skill_manager.add_skills(attempt_trace)
+                        self.skill_manager.add_skills_from_trace(trace)
                         trace.dump()
                     return True
                 case "give-up":
                     if not self.debugging:
                         trace.dump()
                     return False
-
-            env.reset()
+                case "abort":
+                    return False
+                case _:
+                    env.reset()
 
     def setup_environment(self) -> Environment:
         """handles the basic environment setup, primarily adding objects to the scene"""
@@ -99,7 +113,7 @@ class CapOptioner:
             },
         )
 
-        env.set_task(Place5Blocks())
+        env.set_task(Place4BlocksInLine())
         env.reset()
 
         return env
@@ -112,9 +126,16 @@ def reset_skill_library():
     skill_manager.add_core_primitives_to_library()
 
 
+def refresh_core_primitives():
+    """update core primitives after a change to the file - this will remove trace_ids, but we can retrieve them later..."""
+    skill_manager = SkillManager()
+    skill_manager.add_core_primitives_to_library()
+
+
 if __name__ == "__main__":
     agent = CapOptioner(debugging=False)
-
     agent.run()
-
+    # refresh_core_primitives()
     # reset_skill_library()
+    # skill_manager = SkillManager()
+    # skill_manager.delete_skill("remove_blocks_from_pallet_and_align_left")

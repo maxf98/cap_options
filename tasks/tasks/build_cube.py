@@ -22,7 +22,7 @@ class BuildBig3Cube(Task):
 
     def reset(self, env):
         super().reset(env)
-        self.add_blocks(env, 64)
+        self.add_blocks(env, 27)
 
 
 class BuildBig4Cube(Task):
@@ -45,6 +45,7 @@ class BuildCubeInZone(Task):
     def reset(self, env):
         super().reset(env)
         self.add_blocks(env, 8)
+        self.add_zone(env, color="green")
 
 
 class BuildCubeCluttered(Task):

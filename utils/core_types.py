@@ -42,7 +42,7 @@ class Point3D:
 @dataclass
 class Pose:
     """Objects in 3D space have a position and a rotation, i.e. a Pose
-    The position is given as the center of the object,
+    Position is the center of the object,
     Rotation type is taken from scipy.spatial.transform
     """
 

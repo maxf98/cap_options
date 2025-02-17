@@ -12,10 +12,13 @@ from utils import core_primitives, core_types
 import numpy as np
 import itertools
 
-from prompts.base_prompt import bug_fix_prompt
-from utils.llm_utils import query_llm, parse_code_response, extract_code
+from prompts.actor import bug_fix_prompt
+from prompts.lmp import lmp_system_prompt, lmp_prompt
+from utils.llm_utils import query_llm, parse_code_response
 
 from agents.skill import Skill, SkillManager
+
+from pydantic import BaseModel
 
 
 def get_global_vars(env):
@@ -25,14 +28,38 @@ def get_global_vars(env):
     vars = {name: getattr(core_primitives, name) for name in core_primitives.__all__}
     vars.update({name: getattr(core_types, name) for name in core_types.__all__})
     vars.update({"np": np, "itertools": itertools})
+    vars.update({"lmp": lmp})
     return vars
 
 
-def code_exec_with_bug_fix(code_str, env, max_num_attempts=1):
-    # fix bugs in llm-generated code... with llm
-    # max_num_attempts must be >= 1 (otherwise it just never gets run, >1 to fix bugs)
-    attempts = 1
+def lmp(task_description: str, input_description: str, return_description: str):
+    skill_manager = SkillManager()
+    few_shot_examples = skill_manager.retrieve_few_shot_examples(task_description)
+
     messages = [
+        {"role": "system", "content": lmp_system_prompt},
+        {
+            "role": "user",
+            "content": lmp_prompt(
+                task_description,
+                input_description,
+                return_description,
+                few_shot_examples,
+            ),
+        },
+    ]
+
+    response = query_llm(messages)
+    code = parse_code_response(response)
+
+    cap_code_exec(code)
+
+
+def cap_code_exec(code_str, env, max_num_attempts=1):
+    # execute code in a simulated environment
+    # handles setting up the code environment (i.e. loading all the variables), including all the dependencies
+    attempts = 1
+    bug_fix_messages = [
         {
             "role": "system",
             "content": "you write python code to control a robotic arm. You receive pieces of code that contain an error, as well as the error traceback, and you are supposed to fix it.",
@@ -48,7 +75,7 @@ def code_exec_with_bug_fix(code_str, env, max_num_attempts=1):
         except:
             traceback.print_exc()
             if attempts < max_num_attempts:
-                messages.extend(
+                bug_fix_messages.extend(
                     [
                         {"role": "assistant", "content": code_str},
                         {
@@ -57,7 +84,7 @@ def code_exec_with_bug_fix(code_str, env, max_num_attempts=1):
                         },
                     ]
                 )
-                response = query_llm(messages)
+                response = query_llm(bug_fix_messages)
                 print("attempting to fix bugs")
                 code_str = parse_code_response(response)
                 attempts += 1
@@ -82,7 +109,8 @@ def resolve_dependencies(code_str):
     """
 
     dependencies = []
-    new_dependencies = list(get_calls(code_str).keys())
+    skill_dependencies = []
+    new_dependencies = list(get_calls(code_str))
 
     all_skills = os.listdir("memory/skill_library/skills")
 
@@ -91,13 +119,13 @@ def resolve_dependencies(code_str):
         if skill_name not in dependencies and skill_name in all_skills:
             skill = Skill.retrieve_skill_with_name(skill_name)
             if not skill.is_core_primitive:
-                dependencies.append(skill)
-            deps = list(get_calls(skill.code).keys())
+                dependencies.append(skill.name)
+                skill_dependencies.append(skill)
+            deps = list(get_calls(skill.code))
             new_dependencies.extend(deps)
 
-    print("dependencies: ", [skill.name for skill in dependencies])
-
-    return dependencies
+    print(dependencies)
+    return skill_dependencies
 
 
 # def get_calls(code_str, uniquing):
@@ -123,6 +151,13 @@ def get_calls(code_str, unique=True):
     visitor.visit(tree)
     calls = list(set(visitor.calls)) if unique else visitor.calls
     return calls
+
+
+def outside_calls(code_str):
+    calls = get_skill_calls(code_str)
+    defs = get_defs(code_str)
+    calls_not_in_defs = [call for call in calls if call not in defs]
+    return calls_not_in_defs
 
 
 def get_skill_calls(code_str):
@@ -164,10 +199,10 @@ class FunctionCallVisitor(ast.NodeVisitor):
         # Extract function name if it's a direct function call (not a method or attribute)
         if isinstance(node.func, ast.Name):
             self.calls.append(node.func.id)
-        elif isinstance(
-            node.func, ast.Attribute
-        ):  # Handles method calls like obj.method()
-            self.calls.append(node.func.attr)
+        # elif isinstance(
+        #     node.func, ast.Attribute
+        # ):  # Handles method calls like obj.method()
+        #     self.calls.append(node.func.attr)
         self.generic_visit(node)  # Continue visiting child nodes
 
 
@@ -182,8 +217,64 @@ def sample_func(a, b, c):
 
 """
 
+other_code = """
+def place_blue_blocks_around_red_block(gap: float = 0.0):
+    \"""
+    Place one blue block on each side of the red block, aligning their edges perfectly.
+    :param gap: The gap to leave between the blocks. Default is 0 for perfect alignment.
+    \"""
+    # Retrieve all objects in the environment
+    objects = get_objects()
+    # Get the red block
+    red_block = get_block_by_color("red", objects)
+    # Get all blue blocks
+    blue_blocks = [obj for obj in objects if obj.color == "blue" and obj.objectType == "block"]
+    # Ensure there are at least four blue blocks
+    if len(blue_blocks) < 4:
+        raise ValueError("Not enough blue blocks in the environment to perform the task.")
+    # Get the pose of the red block
+    red_block_pose = get_object_pose(red_block)
+    # Calculate the positions for the blue blocks on each side of the red block
+    blue_block_size = blue_blocks[0].size  # Assuming all blue blocks are the same size
+    red_block_size = red_block.size
+    # Calculate positions for each side
+    positions = calculate_positions_around_block(red_block_pose.position, red_block_size, blue_block_size, gap)
+    # Place each blue block at the calculated positions with the same rotation as the red block
+    for i, position in enumerate(positions):
+        place_block_with_rotation(blue_blocks[i], position, red_block_pose.rotation)
+        say(f"Placed blue block {blue_blocks[i].description} at position {position} with aligned edges.")
+def calculate_positions_around_block(center_position: Point3D, base_block_size: tuple[float, float, float], adjacent_block_size: tuple[float, float, float], gap: float) -> list[Point3D]:
+    \"""
+    Calculate the positions for blocks to be placed around a central block, aligning their edges.
+    :param center_position: The center position of the base block.
+    :param base_block_size: The size of the base block.
+    :param adjacent_block_size: The size of the adjacent blocks.
+    :param gap: The gap to leave between the blocks.
+    :return: A list of target positions for the adjacent blocks.
+    \"""
+    positions = []
+    # Calculate offsets for each side
+    offsets = [
+        (base_block_size[0] / 2 + gap + adjacent_block_size[0] / 2, 0, 0),  # Right
+        (-(base_block_size[0] / 2 + gap + adjacent_block_size[0] / 2), 0, 0),  # Left
+        (0, base_block_size[1] / 2 + gap + adjacent_block_size[1] / 2, 0),  # Front
+        (0, -(base_block_size[1] / 2 + gap + adjacent_block_size[1] / 2), 0)  # Back
+    ]
+    for offset in offsets:
+        new_position = Point3D(
+            center_position.x + offset[0],
+            center_position.y + offset[1],
+            center_position.z + offset[2]
+        )
+        positions.append(new_position)
+    return positions
+# Execute the plan
+place_blue_blocks_around_red_block()
+
+"""
+
 if __name__ == "__main__":
     # deps = resolve_dependencies(code)
     # print([dep.name for dep in deps])
     # print(prepend_code_string_with_dependencies(code))
-    print(get_defs(code), get_calls(code), get_skill_calls(code))
+    print(resolve_dependencies(other_code))
