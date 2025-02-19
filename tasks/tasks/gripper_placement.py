@@ -5,7 +5,7 @@ from utils.core_types import Pose, Point3D, Rotation
 class GripperPlacement(Task):
     def __init__(self):
         super().__init__()
-        self.lang_goal = "touch the left side of the block with the gripper. the gripper should be perpendicular to the block"
+        self.lang_goal = "flip over the block by pushing against it with the end effector on the top of the left side"
 
     def reset(self, env):
         super().reset(env)

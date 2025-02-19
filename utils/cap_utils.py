@@ -13,7 +13,6 @@ import numpy as np
 import itertools
 
 from prompts.actor import bug_fix_prompt
-from prompts.lmp import lmp_system_prompt, lmp_prompt
 from utils.llm_utils import query_llm, parse_code_response
 
 from agents.skill import Skill, SkillManager
@@ -28,31 +27,7 @@ def get_global_vars(env):
     vars = {name: getattr(core_primitives, name) for name in core_primitives.__all__}
     vars.update({name: getattr(core_types, name) for name in core_types.__all__})
     vars.update({"np": np, "itertools": itertools})
-    vars.update({"lmp": lmp})
     return vars
-
-
-def lmp(task_description: str, input_description: str, return_description: str):
-    skill_manager = SkillManager()
-    few_shot_examples = skill_manager.retrieve_few_shot_examples(task_description)
-
-    messages = [
-        {"role": "system", "content": lmp_system_prompt},
-        {
-            "role": "user",
-            "content": lmp_prompt(
-                task_description,
-                input_description,
-                return_description,
-                few_shot_examples,
-            ),
-        },
-    ]
-
-    response = query_llm(messages)
-    code = parse_code_response(response)
-
-    cap_code_exec(code)
 
 
 def cap_code_exec(code_str, env, max_num_attempts=1):

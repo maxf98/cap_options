@@ -26,9 +26,7 @@ class Place2Blocks(Task):
 class Place4BlocksInLine(Task):
     def __init__(self):
         super().__init__()
-        self.lang_goal = (
-            "place the blocks in a line along the left side of the workspace"
-        )
+        self.lang_goal = "place the blocks in a straight line"
 
     def reset(self, env):
         super().reset(env)

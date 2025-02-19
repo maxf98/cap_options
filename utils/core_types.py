@@ -100,6 +100,11 @@ class TaskObject:
 @dataclass
 class Workspace:
     """Tasks are defined in a workspace, fully reachable by the robotic arm.
-    The robotic arm is positioned at the origin (0,0)"""
+    The robotic arm is positioned at the origin (0,0).
+    The workspace orientation (from the user's perspective) is:
+    x-axis: back to front
+    y-axis: left to right
+    z-axis: down to up
+    """
 
-    bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.3]])
+    bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.5]])

@@ -12,6 +12,8 @@ from PIL import Image
 import io
 import base64
 
+import textwrap
+
 
 api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
@@ -93,13 +95,16 @@ def parse_code_response(response):
         code_str = extract_code(response)
     else:
         code_str = response
-    print_code(code_str)
 
     return code_str
 
 
 def print_code(code):
-    print(highlight(f"{code}", PythonLexer(), TerminalFormatter()))
+    print(format_code_to_print(code))
+
+
+def format_code_to_print(code):
+    return highlight(f"{code}", PythonLexer(), TerminalFormatter())
 
 
 def read_py(path_to_py):

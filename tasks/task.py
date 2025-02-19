@@ -52,6 +52,9 @@ class Task(Task):
         else:
             self.taskObjects = []
 
+    def set_lang_goal(self, lang_goal):
+        self.lang_goal = lang_goal
+
     def add_blocks(
         self,
         env: Environment,
@@ -118,7 +121,7 @@ class Task(Task):
     ):
         zone_pose = self.get_random_pose(env, size)
         zone_id = env.add_object(
-            "zone/zone.urdf", zone_pose, "fixed", scale=1, color=color
+            "zone/zone.urdf", zone_pose, "fixed", scale=2, color=color
         )
 
         task_obj = TaskObject(
@@ -126,7 +129,7 @@ class Task(Task):
         )
         self.taskObjects.append(task_obj)
 
-    def add_pallet(self, env: Environment):
+    def add_pallet(self, env: Environment, pose=None):
         pallet_size = (0.2, 0.2, 0.02)
         pallet_pose = self.get_random_pose(env, pallet_size)
         pallet_urdf = "pallet/pallet.urdf"
@@ -171,3 +174,17 @@ class Task(Task):
         for obj, pose in config.objects_with_poses:
             if obj.objectType == "block":
                 self.add_block(env, obj.color, obj.size, pose)
+
+
+class GeneratedTask(Task):
+    def __init__(self):
+        super().__init__()
+        self.task_setup_code = ""
+
+    def reset(self, env):
+        super().reset(env)
+
+        exec(self.task_setup_code)
+
+    def set_task_setup_code(self, code):
+        self.task_setup_code = code

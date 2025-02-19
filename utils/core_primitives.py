@@ -37,14 +37,13 @@ IMPORTANT
 # env.reset()
 """-----------------------------------------------------------------------------"""
 
-
 __all__ = [
     "get_objects",
     "get_object_pose",
     "get_end_effector_pose",
     "put_first_on_second",
     "say",
-    # "move_end_effector_to",
+    "move_end_effector_to",
     "get_bbox",
     "get_point_at_distance_and_rotation_from_point",
 ]
@@ -72,22 +71,22 @@ def get_objects() -> list[TaskObject]:
     return env.task.taskObjects
 
 
-# def move_end_effector_to(pose: Pose):
-#     """moves the end effector from its current Pose to a given new Pose"""
-#     ee_pose = get_end_effector_pose()
+def move_end_effector_to(pose: Pose):
+    """moves the end effector from its current Pose to a given new Pose"""
+    ee_pose = get_end_effector_pose()
 
-#     max_steps = 100
-#     step = 0
-#     while (
-#         not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
-#         or not np.allclose(
-#             pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
-#         )
-#     ) and step < max_steps:
-#         env.movep(_to_pybullet_pose(pose), speed=0.0005)
-#         env.step_simulation()
-#         ee_pose = get_end_effector_pose()
-#         step += 1
+    max_steps = 100
+    step = 0
+    while (
+        not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
+        or not np.allclose(
+            pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
+        )
+    ) and step < max_steps:
+        env.movep(_to_pybullet_pose(pose), speed=0.0005)
+        env.step_simulation()
+        ee_pose = get_end_effector_pose()
+        step += 1
 
 
 def put_first_on_second(pickPose: Pose, placePose: Pose):
@@ -127,6 +126,10 @@ def say(msg: str):
 if __name__ == "__main__":
 
     import time
+
+    cur_ee_pose = get_end_effector_pose()
+    pose = Pose(cur_ee_pose.position, Rotation.from_euler("y", 90, degrees=True))
+    move_end_effector_to(pose)
 
     # blockA = get_objects()[0]
     # blockB = get_objects()[1]

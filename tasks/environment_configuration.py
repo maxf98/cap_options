@@ -47,6 +47,11 @@ class EnvironmentConfiguration:
                     symmetry_type = EnvironmentConfiguration.get_symmetry_type(
                         object.size
                     )
+                    other_symmetry_type = EnvironmentConfiguration.get_symmetry_type(
+                        object.size
+                    )
+                    if symmetry_type != other_symmetry_type:
+                        continue
                     if EnvironmentConfiguration.is_pose_equal(
                         pose, otherPose, symmetry_type
                     ):
