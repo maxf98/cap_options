@@ -7,7 +7,7 @@ from utils.core_types import TaskObject, Pose, Rotation
 
 class EnvironmentConfiguration:
     """stores a list of objects and their poses, s.t. we can reset to environment configurations
-    also stores image, s.t. we can choose configs based on images
+    also stores image, s.t. we can choose configs based on images or use image-based retrieval...
     """
 
     def __init__(self, objects_with_poses: list[TaskObject, Pose] = [], image=None):

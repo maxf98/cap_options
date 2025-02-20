@@ -9,23 +9,21 @@ import ast
 import pickle
 import inspect
 
-from agents.experience import AttemptTrace, InteractionTrace
 from agents.model.skill import Skill
+from agents.model.example import TaskExample
 
 from prompts.skill import (
     skill_description_system_prompt,
     generate_skill_description_prompt,
 )
 
-from config import (
+from agents.model.config import (
     SKILL_LIBRARY_DIR,
     EXAMPLE_LIBRARY_DIR,
     MEMORY_DIR,
     SKILL_DIR,
     EXAMPLE_DIR,
 )
-
-import uuid
 
 
 openai_ef = embedding_functions.OpenAIEmbeddingFunction(
@@ -35,21 +33,13 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 
 class SkillManager:
     vector_db_dir = os.path.join(SKILL_LIBRARY_DIR, "vector_db")
-    example_vector_db_dir = os.path.join(EXAMPLE_LIBRARY_DIR, "vector_db")
 
     def __init__(self):
         os.makedirs(self.vector_db_dir, exist_ok=True)
 
-        chroma_client = chromadb.PersistentClient(path=SkillManager.vector_db_dir)
+        chroma_client = chromadb.PersistentClient(path=self.vector_db_dir)
         self.vector_db = chroma_client.get_or_create_collection(
             name="skill_library", embedding_function=openai_ef
-        )
-
-        examples_chroma_client = chromadb.PersistentClient(
-            path=SkillManager.example_vector_db_dir
-        )
-        self.examples_vector_db = examples_chroma_client.get_or_create_collection(
-            name="examples", embedding_function=openai_ef
         )
 
     @staticmethod
@@ -96,20 +86,20 @@ class SkillManager:
     def num_skills(self):
         return self.vector_db.count()
 
-    def add_skills_from_trace(self, trace: InteractionTrace):
-        """extract skills from a (successful) attempt trace"""
-        if trace.successful_attempt is None:
-            return
-        attempt = trace.successful_attempt
+    # def add_skills_from_trace(self, trace: InteractionTrace):
+    #     """extract skills from a (successful) attempt trace"""
+    #     if trace.successful_attempt is None:
+    #         return
+    #     attempt = trace.successful_attempt
 
-        tree = ast.parse(attempt.code_string)
-        nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
-        for node in nodes:
-            skill_str = ast.get_source_segment(attempt.code_string, node)
-            skill = Skill.parse_function_string(skill_str)
+    #     tree = ast.parse(attempt.code_string)
+    #     nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    #     for node in nodes:
+    #         skill_str = ast.get_source_segment(attempt.code_string, node)
+    #         skill = Skill.parse_function_string(skill_str)
 
-            skill.trace_ids.append(attempt.id)  # kind of pointless, because incomplete
-            self.add_skill_to_library(skill)
+    #         skill.trace_ids.append(attempt.id)  # kind of pointless, because incomplete
+    #         self.add_skill_to_library(skill)
 
     def delete_skill(self, name: str):
         if name in os.listdir(SKILL_DIR):
@@ -120,6 +110,7 @@ class SkillManager:
 
     def add_skill_to_library(self, skill: Skill):
         # need to check if a function with this name has been generated before...
+        # technically we are preventing this from happening... this is probably unnecessary
         if skill.name in os.listdir(SKILL_DIR):
             i = 1
             while os.path.join(SKILL_DIR, f"{skill.name}V{i}") in os.listdir(SKILL_DIR):
@@ -182,6 +173,33 @@ class SkillManager:
         )
 
         return (results["ids"], results["embeddings"])
+
+
+class ExamplesManager:
+    vector_db_dir = os.path.join(EXAMPLE_LIBRARY_DIR, "vector_db")
+
+    def __init__(self):
+        os.makedirs(self.vector_db_dir, exist_ok=True)
+        chroma_client = chromadb.PersistentClient(
+            path=SkillManager.example_vector_db_dir
+        )
+        self.vector_db = chroma_client.get_or_create_collection(
+            name="examples", embedding_function=openai_ef
+        )
+
+    def add_example_to_library(self, example: TaskExample):
+        self.vector_db.add(documents=[example.task], id=[example.id])
+        example.dump()
+
+    def retrieve_similar_examples(self, task, num_results=5) -> TaskExample:
+        num_results = min(num_results, self.vector_db.count())
+        results = self.vector_db.query(
+            query_texts=[task],
+            n_results=num_results,
+        )
+        ids = results["ids"][0]
+        task_examples = [TaskExample.retrieve_task_with_id(id) for id in ids]
+        return task_examples
 
 
 code = """

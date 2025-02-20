@@ -10,13 +10,13 @@ class Skill:
         name,
         docstring,
         code,
-        trace_ids=[],
+        task_examples=[],
         is_core_primitive=False,
     ):
         self.name = name
         self.docstring = docstring
         self.code = code
-        self.trace_ids = trace_ids
+        self.task_examples = task_examples
         self.is_core_primitive = is_core_primitive
 
     @property

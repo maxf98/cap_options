@@ -1,9 +1,12 @@
 from environments.environment import Environment
 
-from agents.skill import SkillManager, Skill
+from agents.memory import SkillManager, ExamplesManager
 from agents.action import Actor
-from agents.experience import AttemptTrace, InteractionTrace
 from agents.environment import EnvironmentAgent
+
+from agents.model.interaction_trace import InteractionTrace
+from agents.model.example import TaskExample
+from agents.model.skill import Skill
 
 from utils.llm_utils import (
     query_llm,
@@ -12,6 +15,8 @@ from utils.llm_utils import (
     format_code_to_print,
     print_code,
 )
+
+from utils.cap_utils import get_non_function_code, get_defs
 
 import textwrap
 import pydantic
@@ -23,6 +28,7 @@ class CapOptioner:
     def __init__(self, debugging=False):
 
         self.skill_manager = SkillManager()
+        self.examples_manager = ExamplesManager()
         self.actor = Actor(skill_manager=self.skill_manager)
         self.env_agent = EnvironmentAgent()
 
@@ -35,20 +41,65 @@ class CapOptioner:
 
             task = input("provide a task that tests this skill: ")
             env_setup_prompt = input("how should the environment be setup?")
+
             self.env_agent.initialise_task(task, env_setup_prompt)
-            inital_config = self.env_agent.reset()
-            self.actor.attempt_task(
-                self.env_agent.env, self.env_agent.current_task.lang_goal, skill_header
-            )
-            final_config = self.env_agent.get_current_config()
-            # feedback = input("how did I do?")
-            # self.parse_user_response(feedback)
+
+            self.attempt_task(skill_header)
+
+    def attempt_task(self, skill_header=None):
+        """
+        if skill_header is given, we are trying to solve the task while also learning a specific skill
+        otherwise we are just trying to solve the task - incorporate skill hints eventually
+        the skill to be learned is a special skill which can be updated
+        """
+        inital_config = self.env_agent.reset()
+        task = self.env_agent.current_task.lang_goal
+        trace = InteractionTrace(task=task, initial_config=inital_config)
+        while True:
+            code = self.actor.attempt_task(self.env_agent.env, task, skill_header)
+            feedback = input("how did I do? (success, give-up, or feedback)")
+            trace.add_feedback_round(feedback)
+
+            if feedback == "success":
+                example_code, skill_code = self.extract_task_code_and_skill_header(code)
+                final_config = self.env_agent.get_current_config()
+
+                task_example = TaskExample(
+                    task=task,
+                    code=example_code,
+                    initial_config=inital_config,
+                    final_config=final_config,
+                )
+                self.examples_manager.add_example_to_library(task_example)
+
+                trace.success(task_example)
+                trace.dump()
+
+                skill = Skill.parse_function_string(skill_code)
+                self.skill_manager.add_skill_to_library(skill)
+
+                return
+            elif feedback == "give-up":
+                trace.dump()
+                return
+
+            self.env_agent.reset()
+
+    def extract_task_code_and_skill_header(self, code) -> tuple[str, str]:
+        """given a code string with a function and some flat code, separate the two, and return both"""
+        task_code = get_non_function_code(code)
+        defs = get_defs(code)
+        if len(defs) != 1:
+            print(defs)
+            return
+        skill_code = defs[0]
+        return task_code, skill_code
 
     def parse_intention(self):
         """there are multiple interactions that the user can make at every turn, depending on where the interaction is currently at...
         should definitely map this out in a state machine..."""
 
-    def parse_skill(self) -> str:
+    def parse_skill(self) -> Skill:
         while True:
             skill_prompt = input("what skill would you like to learn?")
             function_header, messages = self.generate_function_header(skill_prompt)

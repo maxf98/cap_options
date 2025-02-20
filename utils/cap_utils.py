@@ -143,6 +143,21 @@ def get_skill_calls(code_str):
     return [call for call in calls if call in skill_names]
 
 
+def get_non_function_code(code):
+    # Parse the code into an AST
+    tree = ast.parse(code)
+    # Extract non-function top-level code
+    non_function_code_nodes = [
+        node
+        for node in tree.body
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    ]
+    # Convert AST nodes back to source code
+    non_function_code = "\n".join(ast.unparse(node) for node in non_function_code_nodes)
+
+    return non_function_code
+
+
 # class FunctionParser(ast.NodeTransformer):
 #     def __init__(self, fs, f_assigns):
 #         super().__init__()
