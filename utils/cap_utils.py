@@ -15,7 +15,8 @@ import itertools
 from prompts.actor import bug_fix_prompt
 from utils.llm_utils import query_llm, parse_code_response
 
-from agents.skill import Skill, SkillManager
+from agents.memory import SkillManager
+from agents.model.skill import Skill
 
 from pydantic import BaseModel
 
@@ -114,10 +115,12 @@ def resolve_dependencies(code_str):
 #     return fs
 
 
-def get_defs(code_str):
+def get_defs(code_str, full_function_codes=False):
     tree = ast.parse(code_str)
-    defs = [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
-    return defs
+    if full_function_codes:
+        return [ast.get_source_segment(code_str, node) for node in tree.body if isinstance(node, ast.FunctionDef)]
+    else:
+        return [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
 
 
 def get_calls(code_str, unique=True):

@@ -46,13 +46,14 @@ class SkillManager:
     def delete_skill_library():
         try:
             shutil.rmtree(SKILL_LIBRARY_DIR)
-            shutil.rmtree(SkillManager.vector_db_dir)
         except Exception as e:
             print(f"an error occurred {e}")
 
     def add_core_primitives_to_library(self):
         # only for retrieval purposes... functions are still actually called from core_primitives module
         from utils import core_primitives
+        os.makedirs(SKILL_LIBRARY_DIR, exist_ok=True)
+        os.makedirs(SKILL_DIR, exist_ok=True)
 
         functions = inspect.getmembers(core_primitives, inspect.isfunction)
         for name, func in functions:
@@ -64,7 +65,6 @@ class SkillManager:
             trace_ids = []
             if name in os.listdir(SKILL_DIR):
                 print("was in there already")
-                trace_ids = Skill.retrieve_skill_with_name(name).trace_ids
                 self.vector_db.delete(ids=[name])
                 shutil.rmtree(path)
             skill = Skill(
@@ -72,7 +72,6 @@ class SkillManager:
                 docstring=inspect.getdoc(func),
                 code=inspect.getsource(func),
                 is_core_primitive=True,
-                trace_ids=trace_ids,
             )
             self.add_skill_to_library(skill)
 
@@ -181,14 +180,14 @@ class ExamplesManager:
     def __init__(self):
         os.makedirs(self.vector_db_dir, exist_ok=True)
         chroma_client = chromadb.PersistentClient(
-            path=SkillManager.example_vector_db_dir
+            path=self.vector_db_dir
         )
         self.vector_db = chroma_client.get_or_create_collection(
             name="examples", embedding_function=openai_ef
         )
 
     def add_example_to_library(self, example: TaskExample):
-        self.vector_db.add(documents=[example.task], id=[example.id])
+        self.vector_db.add(documents=[example.task], ids=[str(example.id)])
         example.dump()
 
     def retrieve_similar_examples(self, task, num_results=5) -> TaskExample:
@@ -211,5 +210,8 @@ def mult(a, b):
 
 if __name__ == "__main__":
     skill_manager = SkillManager()
+
+    example_manager = ExamplesManager()
+    example_manager.add_example_to_library(TaskExample("hello", "", None, None))
     # res = skill_manager.all_skills
     # print(res)

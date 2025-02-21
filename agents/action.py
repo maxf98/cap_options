@@ -13,9 +13,9 @@ from prompts.actor import (
     IdentifyFunctionToEdit,
 )
 
-from agents.skill import Skill, SkillManager
+from agents.model.skill import Skill
+from agents.memory import SkillManager
 
-import tiktoken
 
 from pydantic import BaseModel
 
@@ -36,55 +36,38 @@ class Actor:
         self.skill_manager = skill_manager
         self.messages = []
 
-    def attempt_task(self, env, task, function_header):
+    def attempt_task(self, env, task, skill: Skill):
         """when we are solving a task with a given skill, we are learning the skill
         means we are both writing the skill code and the actual task-specific code"""
 
         from prompts.actor2 import actor_system_prompt, actor_prompt
 
+        self.env = env
+        self.task = task
+
+        # need function for retrieving other potentially task-relevant skills
         skills = self.skill_manager.retrieve_skills(task, num_results=10)
 
-        messages = [
+        self.messages = [
             {"role": "system", "content": actor_system_prompt},
             {
                 "role": "user",
                 "content": actor_prompt(
-                    task=task, skill=function_header, other_useful_skills=skills
+                    task=task, skill=skill.description, other_useful_skills=skills
                 ),
             },
         ]
 
-        code = parse_code_response(query_llm(messages))
+        code = parse_code_response(query_llm(self.messages))
+
+        self.last_code_str = code
+        self.messages.append({"role": "assistant", "content": self.last_code_str})
 
         print_code(code)
 
         cap_code_exec(code, env)
 
         return code
-
-    # def attempt_task(self, env, task):
-    #     """where all the actual interaction logic should go...
-    #     Possible augmentations: chain-of-thought prompting, structured outputs, generalise to learn skills...
-    #     feedback: str
-    #         if task was previously attempted (unsuccessfully), add feedback from last round
-    #     """
-
-    #     self.task = task
-    #     self.env = env
-    #     self.messages.append({"role": "system", "content": actor_system_prompt})
-    #     # skills = self.retrieve_skill_string(self.task)
-    #     # print(skills)
-    #     skills = ""
-
-    #     self.messages.append({"role": "user", "content": actor_prompt(task, skills)})
-
-    #     response = query_llm(self.messages)
-    #     self.last_code_str = parse_code_response(response)
-    #     self.messages.append({"role": "assistant", "content": self.last_code_str})
-
-    #     cap_code_exec(self.last_code_str, self.env)
-
-    #     return self.last_code_str
 
     def revise_code_with_feedback(self, feedback):
         """code revision should be different from initial task plan - there should be a different retrieval strategy for this

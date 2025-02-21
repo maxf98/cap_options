@@ -1,7 +1,6 @@
 import os, pickle, ast
-from agents.experience import AttemptTrace, InteractionTrace
 
-from config import SKILL_DIR
+from agents.model.config import SKILL_DIR
 
 
 class Skill:
@@ -65,10 +64,6 @@ class Skill:
         doc_string = ast.get_docstring(func)
 
         return Skill(func_name, doc_string, func_source)
-
-    @property
-    def traces(self):
-        return [AttemptTrace.get_attempt_trace(id) for id in self.trace_ids]
 
     @property
     def function_signature(self):

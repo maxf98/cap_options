@@ -9,7 +9,7 @@ from utils.core_types import (
     _to_pybullet_pose,
 )
 from environments.environment import Environment
-from tasks.environment_configuration import EnvironmentConfiguration
+from agents.model.environment_configuration import EnvironmentConfiguration
 import pybullet as p
 
 import pickle

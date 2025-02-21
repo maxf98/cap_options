@@ -16,10 +16,11 @@ from utils.llm_utils import (
     print_code,
 )
 
-from utils.cap_utils import get_non_function_code, get_defs
+from utils.cap_utils import cap_code_exec, get_non_function_code, get_defs
 
 import textwrap
 import pydantic
+import re
 
 
 class CapOptioner:
@@ -37,16 +38,25 @@ class CapOptioner:
     def run(self):
         while True:
             # initial phase - determine skill to learn
-            skill_header = self.parse_skill()
+            skill = self.parse_skill()
+            
+            self.learn_skill(skill)
 
+    def learn_skill(self, skill: Skill):
+        while True:
             task = input("provide a task that tests this skill: ")
             env_setup_prompt = input("how should the environment be setup?")
 
             self.env_agent.initialise_task(task, env_setup_prompt)
 
-            self.attempt_task(skill_header)
+            self.attempt_task(skill)
 
-    def attempt_task(self, skill_header=None):
+            what_next = input("new-task or new-skill?")
+
+            if what_next == "new-skill":
+                return
+
+    def attempt_task(self, skill=None):
         """
         if skill_header is given, we are trying to solve the task while also learning a specific skill
         otherwise we are just trying to solve the task - incorporate skill hints eventually
@@ -55,44 +65,55 @@ class CapOptioner:
         inital_config = self.env_agent.reset()
         task = self.env_agent.current_task.lang_goal
         trace = InteractionTrace(task=task, initial_config=inital_config)
+        code = self.actor.attempt_task(self.env_agent.env, task, skill)
+
         while True:
-            code = self.actor.attempt_task(self.env_agent.env, task, skill_header)
-            feedback = input("how did I do? (success, give-up, or feedback)")
-            trace.add_feedback_round(feedback)
+            feedback = input("how did I do? (success, give-up, try-again, or feedback)")
 
-            if feedback == "success":
-                example_code, skill_code = self.extract_task_code_and_skill_header(code)
-                final_config = self.env_agent.get_current_config()
+            match feedback:
+                case "success":
+                    example_code, skill_code = self.extract_task_and_skill_code(code)
 
-                task_example = TaskExample(
-                    task=task,
-                    code=example_code,
-                    initial_config=inital_config,
-                    final_config=final_config,
-                )
-                self.examples_manager.add_example_to_library(task_example)
+                    final_config = self.env_agent.get_current_config()
 
-                trace.success(task_example)
-                trace.dump()
+                    task_example = TaskExample(
+                        task=task,
+                        code=example_code,
+                        initial_config=inital_config,
+                        final_config=final_config,
+                    )
+                    self.examples_manager.add_example_to_library(task_example)
 
-                skill = Skill.parse_function_string(skill_code)
-                self.skill_manager.add_skill_to_library(skill)
+                    trace.success(task_example)
+                    trace.dump()
 
-                return
-            elif feedback == "give-up":
-                trace.dump()
-                return
+                    skill = Skill.parse_function_string(skill_code)
+                    self.skill_manager.add_skill_to_library(skill)
 
-            self.env_agent.reset()
+                    return
+                case "give-up":
+                    trace.dump()
+                    return    
+                case "try-again":
+                    self.env_agent.reset()
+                    self.actor.try_again()
+                case _:
+                    trace.add_feedback_round(feedback)
+                    self.env_agent.reset()
+                    self.actor.revise_code_with_feedback(feedback)
 
-    def extract_task_code_and_skill_header(self, code) -> tuple[str, str]:
+    def extract_task_and_skill_code(self, code) -> tuple[str, str]:
         """given a code string with a function and some flat code, separate the two, and return both"""
         task_code = get_non_function_code(code)
-        defs = get_defs(code)
+        defs = get_defs(code, full_function_codes=True)
+        print(task_code)
+        print(defs)
         if len(defs) != 1:
             print(defs)
             return
         skill_code = defs[0]
+
+
         return task_code, skill_code
 
     def parse_intention(self):
@@ -100,16 +121,13 @@ class CapOptioner:
         should definitely map this out in a state machine..."""
 
     def parse_skill(self) -> Skill:
-        while True:
-            skill_prompt = input("what skill would you like to learn?")
-            function_header, messages = self.generate_function_header(skill_prompt)
-            function_header = self.refine_function_header(function_header, messages)
-            if function_header is not None:
-                return function_header
-            else:
-                print("abandoning current generation")
+        skill_prompt = input("what skill would you like to learn?")
 
-    def refine_function_header(self, function_header, messages=[]) -> str | None:
+        function_header, messages = self.generate_function_header(skill_prompt)
+        skill = self.refine_function_header(function_header, messages)
+        return skill
+
+    def refine_function_header(self, function_header, messages=[]) -> Skill | str | None:
         from prompts.parse_skill import (
             refine_function_header_prompt,
         )
@@ -127,13 +145,16 @@ class CapOptioner:
 
             print(textwrap.dedent(summary_str))
 
-            refinement_input = input("Accept the function? (<feedback>, abort, accept)")
+            refinement_input = input("Accept the function? (<feedback>, abort, accept, use<function_name>)")
 
             match refinement_input:
                 case "abort":
                     return None
                 case "accept":
-                    return function_header
+                    return Skill.parse_function_string(function_header)
+                case str() if (m := re.fullmatch(r"use<(.*)>", refinement_input)):
+                    name = m.group(1)
+                    return Skill.retrieve_skill_with_name(name)
 
             messages.append(
                 {
@@ -175,50 +196,7 @@ class CapOptioner:
         - (technically - define a new skill, refine skills, ...)
         """
 
-    #     task_string = env.task.lang_goal or input(
-    #         "\n\n\n"
-    #         + "I'm ready to take instructions."
-    #         + "\n"
-    #         + "Input your instruction:"
-    #     )
 
-    #     self.attempt_task(env, task_string)
-
-    # def attempt_task(self, env: Environment, task_string: str):
-    #     trace = InteractionTrace(task_string)
-    #     feedback = None
-    #     while True:
-    #         initial_config = env.task.get_current_configuration(env)
-    #         code_plan = (
-    #             self.actor.attempt_task(task=task_string, env=env)
-    #             if feedback is None
-    #             else self.actor.revise_code_with_feedback(feedback)
-    #         )
-    #         final_config = env.task.get_current_configuration(env)
-
-    #         feedback = input(
-    #             "How did I do? ('success', 'give-up', 'try-again', 'abort', or give feedback)"
-    #         )
-    #         attempt_trace = AttemptTrace(
-    #             initial_config, code_plan, final_config, feedback
-    #         )
-
-    #         trace.add_attempt(attempt_trace)
-
-    #         match feedback:
-    #             case "success":
-    #                 if not self.debugging:
-    #                     self.skill_manager.add_skills_from_trace(trace)
-    #                     trace.dump()
-    #                 return True
-    #             case "give-up":
-    #                 if not self.debugging:
-    #                     trace.dump()
-    #                 return False
-    #             case "abort":
-    #                 return False
-    #             case _:
-    #                 env.reset()
 
 
 def reset_skill_library():

@@ -1,5 +1,5 @@
 from prompts.prompt_utils import get_core_types_text
-from agents.skill import Skill
+from agents.model.skill import Skill
 
 
 actor_system_prompt = f"""

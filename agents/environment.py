@@ -1,5 +1,5 @@
 from tasks.task import Task, GeneratedTask
-from tasks.environment_configuration import EnvironmentConfiguration
+from agents.model.environment_configuration import EnvironmentConfiguration
 from environments.environment import Environment
 from prompts.task_gen_prompt import task_setup_system_prompt
 from utils.llm_utils import query_llm, parse_code_response

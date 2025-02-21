@@ -1,6 +1,6 @@
 import uuid, os, pickle, ast
 from agents.model.config import EXAMPLE_DIR
-from model.environment_configuration import EnvironmentConfiguration
+from agents.model.environment_configuration import EnvironmentConfiguration
 
 
 """
@@ -24,6 +24,7 @@ class TaskExample:
         self.initial_config = initial_config
         self.final_config = final_config
 
+    @property
     def save_dir(self):
         return f"{EXAMPLE_DIR}/{self.id}"
 
@@ -46,3 +47,5 @@ class TaskExample:
             example = pickle.load(file)
 
         return example
+
+
