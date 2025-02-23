@@ -7,13 +7,12 @@ class Skill:
     def __init__(
         self,
         name,
-        docstring,
         code,
         task_examples=[],
         is_core_primitive=False,
+        is_tentative=False
     ):
         self.name = name
-        self.docstring = docstring
         self.code = code
         self.task_examples = task_examples
         self.is_core_primitive = is_core_primitive
@@ -61,9 +60,8 @@ class Skill:
         func = func_defs[0]
         func_name = func.name
         func_source = ast.get_source_segment(code_string, func)
-        doc_string = ast.get_docstring(func)
 
-        return Skill(func_name, doc_string, func_source)
+        return Skill(func_name, func_source)
 
     @property
     def function_signature(self):
@@ -80,3 +78,11 @@ class Skill:
                 break
 
         return signature.split('"""', 1)[0]  # Return everything up to the colon
+
+    @property
+    def docstring(self):
+        tree = ast.parse(self.code)
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef):  # Ensure it's a function definition
+                return ast.get_docstring(node)
+        return None

@@ -1,5 +1,6 @@
 from prompts.prompt_utils import get_core_types_text
 from agents.model.skill import Skill
+from agents.model.example import TaskExample
 
 
 actor_system_prompt = f"""
@@ -55,3 +56,33 @@ def actor_prompt(
     The following skills may be useful in your implementation:
     {"\n\n".join([skill.description for skill in other_useful_skills])}
     """
+
+
+def actor_iteration_prompt(feedback):
+    return f"""
+    Rewrite the previous code to integrate the feedback: {feedback}.
+    Only make changes that take into account this feedback. 
+    """
+
+
+
+def skill_learning_prompt(task, few_shot_examples: list[TaskExample], skill: Skill, other_useful_skills: list[Skill]):
+    return f"""
+    The task is: {task}
+    The function you are supposed to implement is: {str(skill)}.
+    ---------------------------------------------------------------
+    Examples of the task-specific code used to solve similar tasks is:
+    {get_few_shot_examples_string(few_shot_examples)}
+    The skill has been used in the following prior tasks: 
+    {"\n".join([task for task in skill.tasks])}
+    The following skills may be useful in your implementation:
+    {"\n\n".join([skill.description for skill in other_useful_skills])}
+    ----------------------------------------------------------------
+    Implement the function and solve the task, while trying to ensure that prior tasks remain solvable.
+    """
+
+def get_few_shot_examples_string(examples: list[TaskExample]):
+    out = ""
+    for example in examples:
+        out += f"TASK: {example.task} \n CODE: {example.code} \n\n"
+    return out

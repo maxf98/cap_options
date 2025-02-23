@@ -56,7 +56,7 @@ class CapOptioner:
             if what_next == "new-skill":
                 return
 
-    def attempt_task(self, skill=None):
+    def attempt_task(self, skill: Skill=None):
         """
         if skill_header is given, we are trying to solve the task while also learning a specific skill
         otherwise we are just trying to solve the task - incorporate skill hints eventually
@@ -87,7 +87,8 @@ class CapOptioner:
                     trace.success(task_example)
                     trace.dump()
 
-                    skill = Skill.parse_function_string(skill_code)
+                    skill.code = skill_code
+                    skill.task_examples.append(task_example.id)
                     self.skill_manager.add_skill_to_library(skill)
 
                     return
@@ -106,8 +107,6 @@ class CapOptioner:
         """given a code string with a function and some flat code, separate the two, and return both"""
         task_code = get_non_function_code(code)
         defs = get_defs(code, full_function_codes=True)
-        print(task_code)
-        print(defs)
         if len(defs) != 1:
             print(defs)
             return
@@ -127,7 +126,7 @@ class CapOptioner:
         skill = self.refine_function_header(function_header, messages)
         return skill
 
-    def refine_function_header(self, function_header, messages=[]) -> Skill | str | None:
+    def refine_function_header(self, function_header, messages=[]) -> Skill | None:
         from prompts.parse_skill import (
             refine_function_header_prompt,
         )
@@ -151,7 +150,8 @@ class CapOptioner:
                 case "abort":
                     return None
                 case "accept":
-                    return Skill.parse_function_string(function_header)
+                    skill = Skill.parse_function_string(function_header)
+                    return skill
                 case str() if (m := re.fullmatch(r"use<(.*)>", refinement_input)):
                     name = m.group(1)
                     return Skill.retrieve_skill_with_name(name)
@@ -218,4 +218,5 @@ if __name__ == "__main__":
     # refresh_core_primitives()
     # reset_skill_library()
     # skill_manager = SkillManager()
-    # skill_manager.delete_skill("remove_blocks_from_pallet_and_align_left")
+    # skill_manager.delete_skill("stack_blocksV1")
+

@@ -5,24 +5,11 @@ from utils.llm_utils import (
     print_code,
 )
 from utils.cap_utils import cap_code_exec
-from prompts.actor import (
-    actor_system_prompt,
-    actor_prompt,
-    actor_iteration_prompt,
-    identify_problematic_code,
-    IdentifyFunctionToEdit,
-)
 
 from agents.model.skill import Skill
-from agents.memory import SkillManager
+from agents.model.example import TaskExample
+from agents.memory import SkillManager, ExamplesManager
 
-
-from pydantic import BaseModel
-
-
-class CodeEdit(BaseModel):
-    code: str
-    reasoning: str
 
 
 class Actor:
@@ -32,102 +19,88 @@ class Actor:
     actually not completely sure what this class should contain right now...
     """
 
-    def __init__(self, skill_manager: SkillManager = None):
+    def __init__(self, skill_manager: SkillManager = None, examples_manager: ExamplesManager = None):
         self.skill_manager = skill_manager
+        self.examples_manager = examples_manager
         self.messages = []
 
-    def attempt_task(self, env, task, skill: Skill):
+    def learn_skill(self, env, task, skill: Skill):
         """when we are solving a task with a given skill, we are learning the skill
         means we are both writing the skill code and the actual task-specific code"""
 
-        from prompts.actor2 import actor_system_prompt, actor_prompt
+        from prompts.actor2 import actor_system_prompt, skill_learning_prompt
 
         self.env = env
         self.task = task
 
         # need function for retrieving other potentially task-relevant skills
-        skills = self.skill_manager.retrieve_skills(task, num_results=10)
+        skills = self.retrieve_task_related_skills(task)
+        few_shot_examples = self.retrieve_task_few_shot_examples(task)
+
+        prompt = skill_learning_prompt(
+                    task=task, few_shot_examples=few_shot_examples, skill=skill, other_useful_skills=skills
+                )
+        
+        print(prompt)
 
         self.messages = [
             {"role": "system", "content": actor_system_prompt},
             {
                 "role": "user",
-                "content": actor_prompt(
-                    task=task, skill=skill.description, other_useful_skills=skills
-                ),
+                "content": prompt,
             },
         ]
 
-        code = parse_code_response(query_llm(self.messages))
-
-        self.last_code_str = code
-        self.messages.append({"role": "assistant", "content": self.last_code_str})
-
-        print_code(code)
-
-        cap_code_exec(code, env)
-
+        code = self.write_and_run_code(self.messages)
+        
         return code
-
+    
     def revise_code_with_feedback(self, feedback):
         """code revision should be different from initial task plan - there should be a different retrieval strategy for this
         for example also finding past examples of how feedback was incorporated into a solution
         """
 
+        from prompts.actor2 import actor_iteration_prompt
+
         if feedback == "try-again":
             return self.try_again()
 
-        # TODO: somehow handle intermediate step with handling feedback
-
-        # query_messages = self.messages.copy()
-        # query_messages.append({"role": "assistant", "content": self.last_code_str})
-        # skills = self.retrieve_skill_string(feedback)
-        skills = ""
-        # print(skills)
         self.messages.append(
             {
                 "role": "user",
-                "content": actor_iteration_prompt(feedback, skills),
+                "content": actor_iteration_prompt(feedback),
             }
         )
 
-        response = query_llm(self.messages)
-        self.last_code_str = parse_code_response(response)
+        code = self.write_and_run_code(self.messages)
+
+        return code
+    
+    def solve_task(self, env, task):
+        """solves a task without a skill to be learned"""
+        return
+    
+    def write_and_run_code(self, messages):
+        response = query_llm(messages)
+        code = parse_code_response(response)
+        self.last_code_str = code
         self.messages.append({"role": "assistant", "content": self.last_code_str})
+        print_code(code)
+        cap_code_exec(code, self.env)
+        return code
 
-        cap_code_exec(self.last_code_str, self.env)
-
-        return self.last_code_str
-
-    def identify_problematic_code(self, code, feedback) -> Skill:
-        messages = [
-            {"role": "user", "content": identify_problematic_code(code, feedback)}
-        ]
-        response = query_llm_structured(messages, IdentifyFunctionToEdit)
-        print(response.skill, response.reasoning)
-        skill = Skill.retrieve_skill_with_name(response.function_name)
-        return skill
 
     def try_again(self):
         """just run the last piece of code again"""
         cap_code_exec(self.last_code_str, self.env)
         return self.last_code_str
+    
+    def retrieve_task_related_skills(self, task) -> list[Skill]:
+        # naive strategy for now...
+        return self.skill_manager.retrieve_skills(task, num_results=10)
+        
 
-    def make_api_call(task):
-        """check the api for previously solved tasks similar to this one - using the docstring should be fine? a description seems better though..."""
-        # get few-shot examples
-        # for each skill that is used
+    def retrieve_task_few_shot_examples(self, task) -> list[TaskExample]:
+        return self.examples_manager.retrieve_similar_examples(task)
 
-    def retrieve_skill_string(self, task, only_core_primitives=False) -> str:
-        """format query for retrieval from vector database
-        simplest approach is to use the task as a query and retrieve codes similar
-        """
 
-        if self.skill_manager is None:
-            return ""
-
-        skills = self.skill_manager.retrieve_skills(
-            task, only_core_primitives=only_core_primitives
-        )
-        skill_string = ("\n\n").join([str(skill) for skill in skills])
-        return skill_string

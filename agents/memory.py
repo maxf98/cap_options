@@ -20,9 +20,8 @@ from prompts.skill import (
 from agents.model.config import (
     SKILL_LIBRARY_DIR,
     EXAMPLE_LIBRARY_DIR,
-    MEMORY_DIR,
     SKILL_DIR,
-    EXAMPLE_DIR,
+    CONFIG_LIBRARY_DIR
 )
 
 
@@ -110,19 +109,12 @@ class SkillManager:
     def add_skill_to_library(self, skill: Skill):
         # need to check if a function with this name has been generated before...
         # technically we are preventing this from happening... this is probably unnecessary
-        if skill.name in os.listdir(SKILL_DIR):
-            i = 1
-            while os.path.join(SKILL_DIR, f"{skill.name}V{i}") in os.listdir(SKILL_DIR):
-                i += 1
-            new_name = f"{skill.name}V{i}"
-            skill.code.replace(skill.name, new_name)
-            skill.name = new_name
-
-        self.vector_db.add(
+        self.vector_db.upsert(
             documents=[skill.docstring],
             ids=[skill.name],
             metadatas=[{"is_core_primitive": skill.is_core_primitive}],
         )
+        
         skill.dump()
 
     def generate_description(self, task, skill_code):
@@ -199,6 +191,36 @@ class ExamplesManager:
         ids = results["ids"][0]
         task_examples = [TaskExample.retrieve_task_with_id(id) for id in ids]
         return task_examples
+    
+
+class ConfigManager:
+    """stores configs or part configs for retrieval"""
+    vector_db_dir = os.path.join(CONFIG_LIBRARY_DIR, "vector_db")
+
+    def __init__(self):
+        os.makedirs(self.vector_db_dir, exist_ok=True)
+        chroma_client = chromadb.PersistentClient(
+            path=self.vector_db_dir
+        )
+        self.vector_db = chroma_client.get_or_create_collection(
+            name="configs", embedding_function=openai_ef
+        )
+
+        os.makedirs(os.path.join(CONFIG_LIBRARY_DIR, "configs.txt"))
+
+    def store_config(self, config, description):
+        """store in vector db for retrieval and write to config list"""
+        pass
+
+    def retrieve_configs(self, query):
+        pass
+
+
+
+class InsightsManager:
+    """stores general behaviour guidelines... leave todo for now"""
+    def __init__(self):
+        pass
 
 
 code = """

@@ -6,10 +6,11 @@ import pybullet as p
 from utils.core_types import *
 
 
+code = """
+def main():
+    print("hello")
+"""
 if __name__ == "__main__":
-    poseA = Pose(Point3D.from_xyz([1, 2, 3]), Rotation.from_quat([0, 0, 0, 1]))
-    poseB = Pose(Point3D.from_xyz([1, 2, 3]), Rotation.from_quat([0, 0, 2, 1]))
-    poseC = Pose(Point3D.from_xyz([1, 2, 3]), Rotation.from_quat([0, 0, 0, 1]))
-
-    print(poseA == poseB)
-    print(poseA == poseC)
+    new_code = code.replace("main", "hello")
+    print(new_code)
+    
