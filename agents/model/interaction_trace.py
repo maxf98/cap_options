@@ -15,10 +15,6 @@ from agents.model.example import TaskExample
 from dataclasses import dataclass
 
 
-EXPERIENCE_DIR = "memory/trajectories"
-os.makedirs(EXPERIENCE_DIR, exist_ok=True)
-
-
 class InteractionTrace:
     """
     point is that - even when we iteratively solve a task by providing the agent with clues, we reset the environment state inbetween
@@ -47,18 +43,9 @@ class InteractionTrace:
     def add_feedback_round(self, feedback):
         self.feedbacks.append(feedback)
 
-    def success(self, example: TaskExample):
+    def success(self, example: TaskExample) -> str:
         self.example = example
 
-    def dump(self):
-        with open(f"{EXPERIENCE_DIR}/{self.id}.pkl", "wb") as file:
+    def dump(self, dir):
+        with open(f"{dir}/{self.id}.pkl", "wb") as file:
             pickle.dump(self, file)
-
-    @staticmethod
-    def get_all_traces() -> list["InteractionTrace"]:
-        traces = []
-        for pickle_file in os.listdir(EXPERIENCE_DIR):
-            with open(f"{EXPERIENCE_DIR}/{pickle_file}", "rb") as file:
-                trace = pickle.load(file)
-                traces.append(trace)
-        return traces

@@ -1,74 +1,97 @@
-from environments.environment import Environment
-
-from agents.memory import SkillManager, ExamplesManager
+from agents.memory import MemoryManager
 from agents.action import Actor
 from agents.environment import EnvironmentAgent
+from agents.revision import RevisionAgent
+from agents.skill_parser import SkillParser
 
-from agents.model.interaction_trace import InteractionTrace
-from agents.model.example import TaskExample
-from agents.model.skill import Skill
+from agents.model import Skill, TaskExample, InteractionTrace
 
-from utils.llm_utils import (
-    query_llm,
-    query_llm_structured,
-    parse_code_response,
-    format_code_to_print,
-    print_code,
+from tasks.task import Task
+
+from utils.cap_utils import (
+    get_non_function_code,
+    get_defs,
 )
-
-from utils.cap_utils import cap_code_exec, get_non_function_code, get_defs
-
-import textwrap
-import pydantic
-import re
 
 
 class CapOptioner:
-    states = ["parsing skill", "task setup", "attempting task", "testing skill"]
 
-    def __init__(self, debugging=False):
+    def __init__(self):
+        MEMORY_DIR = "memory/trained"
 
-        self.skill_manager = SkillManager()
-        self.examples_manager = ExamplesManager()
-        self.actor = Actor(skill_manager=self.skill_manager)
-        self.env_agent = EnvironmentAgent()
-
-        self.debugging = debugging
+        self.memory_manager = MemoryManager(MEMORY_DIR)
+        self.env_agent = EnvironmentAgent(memory_manager=self.memory_manager)
+        self.skill_parser = SkillParser(memory_manager=self.memory_manager)
+        self.actor = Actor(
+            memory_manager=self.memory_manager, skill_parser=self.skill_parser
+        )
+        self.revision_agent = RevisionAgent(
+            memory_manager=self.memory_manager,
+            env_agent=self.env_agent,
+        )
 
     def run(self):
         while True:
             # initial phase - determine skill to learn
-            skill = self.parse_skill()
-            
-            self.learn_skill(skill)
+            learn_skill = input(
+                "learn a new skill? (yes/no)  - no means just attempt task\n"
+            )
 
-    def learn_skill(self, skill: Skill):
-        while True:
-            task = input("provide a task that tests this skill: ")
-            env_setup_prompt = input("how should the environment be setup?")
+            if learn_skill == "yes":
+                skill = self.skill_parser.parse_skill()
 
-            self.env_agent.initialise_task(task, env_setup_prompt)
+                if skill is None:
+                    continue
 
-            self.attempt_task(skill)
+                while True:
+                    skill_tasks = self.memory_manager.skill_task_examples(skill)
+                    print(
+                        f"tested tasks\n {'\n'.join([task.task for task in skill_tasks])}"
+                    )
+                    self.env_agent.parse_task()
 
-            what_next = input("new-task or new-skill?")
+                    self.attempt_task(skill)
 
-            if what_next == "new-skill":
-                return
+                    what_next = input("new-task or new-skill?")
 
-    def attempt_task(self, skill: Skill=None):
+                    if what_next == "new-skill":
+                        break
+            else:
+                self.env_agent.parse_task()
+                self.attempt_task()
+
+    def attempt_task(self, skill: Skill = None):
         """
-        if skill_header is given, we are trying to solve the task while also learning a specific skill
+        if skill is given, we are trying to solve the task while also learning a specific skill
         otherwise we are just trying to solve the task - incorporate skill hints eventually
-        the skill to be learned is a special skill which can be updated
+        the skill to be learned can be updated - all other skills can only be used
         """
         inital_config = self.env_agent.reset()
         task = self.env_agent.current_task.lang_goal
         trace = InteractionTrace(task=task, initial_config=inital_config)
-        code = self.actor.attempt_task(self.env_agent.env, task, skill)
+
+        def get_initial_code():
+            return (
+                self.actor.learn_skill(self.env_agent.env, task, skill)
+                if skill is not None
+                else self.actor.attempt_task(self.env_agent.env, task)
+            )
+
+        code = get_initial_code()
 
         while True:
-            feedback = input("how did I do? (success, give-up, try-again, or feedback)")
+            # --------------------------------------------------------------------------------
+            # use this when display set to false... supposed to be faster, but I'm not sure...
+            # img = self.env_agent.env.render()
+            # import matplotlib.pyplot as plt
+
+            # plt.imshow(img)
+            # plt.show()
+            # --------------------------------------------------------------------------------
+
+            feedback = input(
+                "how did I do? (success, give-up, re-run, try-again, hints:..., or feedback & iterate)"
+            )
 
             match feedback:
                 case "success":
@@ -81,27 +104,54 @@ class CapOptioner:
                         code=example_code,
                         initial_config=inital_config,
                         final_config=final_config,
+                        skill_code=skill_code,
                     )
-                    self.examples_manager.add_example_to_library(task_example)
+
+                    self.memory_manager.example_manager.add_example_to_library(
+                        task_example
+                    )
 
                     trace.success(task_example)
-                    trace.dump()
+                    self.memory_manager.add_trace(trace)
 
-                    skill.code = skill_code
-                    skill.task_examples.append(task_example.id)
-                    self.skill_manager.add_skill_to_library(skill)
+                    if skill is not None:
+                        failed_task = self.revision_agent.test_modified_skill_on_past_task_examples(
+                            skill, skill_code
+                        )
+
+                        # only update the skill if the new skill is successful on all previous tasks
+                        if failed_task:
+                            # TODO: handle this somehow...
+                            print(
+                                "failed to solve prior tasks - aborting commit! continue iterating!"
+                            )
+                            continue
+
+                        skill.code = skill_code
+                        skill.add_task_example(task_example)
+                        self.memory_manager.skill_manager.add_skill_to_library(skill)
+
+                    self.actor.reset()
 
                     return
                 case "give-up":
-                    trace.dump()
-                    return    
+                    self.actor.reset()
+                    self.memory_manager.add_trace(trace)
+                    return
+                case "re-run":
+                    self.env_agent.reset()
+                    self.actor.run_last_code_str()
                 case "try-again":
                     self.env_agent.reset()
-                    self.actor.try_again()
+                    code = get_initial_code()
                 case _:
                     trace.add_feedback_round(feedback)
                     self.env_agent.reset()
-                    self.actor.revise_code_with_feedback(feedback)
+                    if feedback.startswith("hints:"):
+                        hints = feedback.split(":")[1].split(",")
+                        code = self.actor.revise_code_with_feedback(hints, is_hint=True)
+                    else:
+                        code = self.actor.revise_code_with_feedback(feedback)
 
     def extract_task_and_skill_code(self, code) -> tuple[str, str]:
         """given a code string with a function and some flat code, separate the two, and return both"""
@@ -109,114 +159,46 @@ class CapOptioner:
         defs = get_defs(code, full_function_codes=True)
         if len(defs) != 1:
             print(defs)
-            return
+            return task_code, None
         skill_code = defs[0]
-
 
         return task_code, skill_code
 
-    def parse_intention(self):
-        """there are multiple interactions that the user can make at every turn, depending on where the interaction is currently at...
-        should definitely map this out in a state machine..."""
 
-    def parse_skill(self) -> Skill:
-        skill_prompt = input("what skill would you like to learn?")
-
-        function_header, messages = self.generate_function_header(skill_prompt)
-        skill = self.refine_function_header(function_header, messages)
-        return skill
-
-    def refine_function_header(self, function_header, messages=[]) -> Skill | None:
-        from prompts.parse_skill import (
-            refine_function_header_prompt,
-        )
-
-        while True:
-            similar_skills = self.skill_manager.retrieve_skills(
-                function_header, num_results=3
-            )
-            summary_str = f"""
-                The proposed function header is: 
-                {format_code_to_print(function_header)}
-                Similar existing functions are:
-                {"\n".join([format_code_to_print(skill.description) for skill in similar_skills])}
-                """
-
-            print(textwrap.dedent(summary_str))
-
-            refinement_input = input("Accept the function? (<feedback>, abort, accept, use<function_name>)")
-
-            match refinement_input:
-                case "abort":
-                    return None
-                case "accept":
-                    skill = Skill.parse_function_string(function_header)
-                    return skill
-                case str() if (m := re.fullmatch(r"use<(.*)>", refinement_input)):
-                    name = m.group(1)
-                    return Skill.retrieve_skill_with_name(name)
-
-            messages.append(
-                {
-                    "role": "user",
-                    "content": refine_function_header_prompt(
-                        function_header, refinement_input
-                    ),
-                }
-            )
-            response = query_llm(messages)
-            function_header = parse_code_response(response)
-            messages.append({"role": "assistant", "content": function_header})
-
-    def generate_function_header(self, skill_prompt):
-        from prompts.parse_skill import (
-            generate_function_header_system_prompt,
-        )
-
-        messages = [
-            {"role": "system", "content": generate_function_header_system_prompt},
-            {
-                "role": "user",
-                "content": skill_prompt,
-            },
-        ]
-
-        response = query_llm(messages)
-        code = parse_code_response(response)
-        messages.append({"role": "assistant", "content": code})
-
-        return code, messages
-
-    def parse_user_response(self, feedback):
-        """determine what action the user would like to take next:
-        - iterate on the current task (refine task code and/or skill)
-        - successfully solved current task -> store code example and Task configs...
-            - sufficiently satisfied that the skill is successful?
-            - finish
-        - (technically - define a new skill, refine skills, ...)
-        """
-
-
-
-
-def reset_skill_library():
-    """for some reason we need to do this in the root file, otherwise something doesn't work with pickling"""
-    SkillManager.delete_skill_library()
-    skill_manager = SkillManager()
-    skill_manager.add_core_primitives_to_library()
+# def reset_skill_library():
+#     """for some reason we need to do this in the root file, otherwise something doesn't work with pickling"""
+#     skill_manager = SkillManager()
+#     SkillManager.delete_skill_library()
+#     skill_manager = SkillManager()
+#     skill_manager.add_core_primitives_to_library()
 
 
 def refresh_core_primitives():
     """update core primitives after a change to the file - this will remove trace_ids, but we can retrieve them later..."""
-    skill_manager = SkillManager()
+    from agents.memory import SkillManager
+
+    skill_manager = SkillManager(MEMORY_DIR="memory/trained")
     skill_manager.add_core_primitives_to_library()
 
 
+# def delete_examples_that_use_skill(name: str):
+#     example_manager = ExamplesManager()
+#     examples = example_manager.all_examples
+#     for example in examples:
+#         calls = get_calls(example.code)
+#         print(calls)
+#         if name in calls:
+#             example_manager.delete_example(example)
+
+
 if __name__ == "__main__":
-    agent = CapOptioner(debugging=False)
+    # refresh_core_primitives()
+    agent = CapOptioner()
     agent.run()
     # refresh_core_primitives()
     # reset_skill_library()
     # skill_manager = SkillManager()
-    # skill_manager.delete_skill("stack_blocksV1")
-
+    # skill_manager.delete_skill("build_cube_from_blocks")
+    # delete_examples_that_use_skill("build_cube_from_blocks")
+    # example_manager = ExamplesManager()
+    # example_manager.delete_examples_wo_file()

@@ -15,10 +15,9 @@ import itertools
 from prompts.actor import bug_fix_prompt
 from utils.llm_utils import query_llm, parse_code_response
 
-from agents.memory import SkillManager
-from agents.model.skill import Skill
-
 from pydantic import BaseModel
+
+from agents.model import Skill
 
 
 def get_global_vars(env):
@@ -31,7 +30,7 @@ def get_global_vars(env):
     return vars
 
 
-def cap_code_exec(code_str, env, max_num_attempts=1):
+def cap_code_exec(code_str, env, dependencies=[], lvars={}, max_num_attempts=1):
     # execute code in a simulated environment
     # handles setting up the code environment (i.e. loading all the variables), including all the dependencies
     attempts = 1
@@ -44,10 +43,11 @@ def cap_code_exec(code_str, env, max_num_attempts=1):
     while True:
         try:
             gvars = get_global_vars(env)
-            dependency_resolved_code_str = prepend_code_string_with_dependencies(
-                code_str
-            )
-            exec(dependency_resolved_code_str, gvars)
+            # dependency_resolved_code_str = prepend_code_string_with_dependencies(
+            #     code_str, dependencies
+            # )
+            parse_dependencies(dependencies, gvars)
+            exec(code_str, gvars, lvars)
         except:
             traceback.print_exc()
             if attempts < max_num_attempts:
@@ -67,41 +67,21 @@ def cap_code_exec(code_str, env, max_num_attempts=1):
             else:
                 return
         else:
-            return
+            return lvars
 
 
-def prepend_code_string_with_dependencies(code_str):
-    dependencies = resolve_dependencies(code_str)
+def parse_dependencies(dependencies, gvars):
+    for skill in dependencies:
+        exec(skill.code, gvars)
+    return gvars
+
+
+def prepend_code_string_with_dependencies(code_str, dependencies):
     new_code_str = code_str
     for skill in dependencies:
         new_code_str = skill.code + "\n\n" + new_code_str
 
     return new_code_str
-
-
-def resolve_dependencies(code_str):
-    """code that calls existing functions will not run unless we somehow import them into the code environment...
-    a simple way to do it would just be to resolve the entire call tree and add it before the code string to be execd...
-    """
-
-    dependencies = []
-    skill_dependencies = []
-    new_dependencies = list(get_calls(code_str))
-
-    all_skills = os.listdir("memory/skill_library/skills")
-
-    while len(new_dependencies) > 0:
-        skill_name = new_dependencies.pop(0)
-        if skill_name not in dependencies and skill_name in all_skills:
-            skill = Skill.retrieve_skill_with_name(skill_name)
-            if not skill.is_core_primitive:
-                dependencies.append(skill.name)
-                skill_dependencies.append(skill)
-            deps = list(get_calls(skill.code))
-            new_dependencies.extend(deps)
-
-    print(dependencies)
-    return skill_dependencies
 
 
 # def get_calls(code_str, uniquing):
@@ -118,7 +98,11 @@ def resolve_dependencies(code_str):
 def get_defs(code_str, full_function_codes=False):
     tree = ast.parse(code_str)
     if full_function_codes:
-        return [ast.get_source_segment(code_str, node) for node in tree.body if isinstance(node, ast.FunctionDef)]
+        return [
+            ast.get_source_segment(code_str, node)
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+        ]
     else:
         return [node.name for node in tree.body if isinstance(node, ast.FunctionDef)]
 
@@ -129,21 +113,6 @@ def get_calls(code_str, unique=True):
     visitor.visit(tree)
     calls = list(set(visitor.calls)) if unique else visitor.calls
     return calls
-
-
-def outside_calls(code_str):
-    calls = get_skill_calls(code_str)
-    defs = get_defs(code_str)
-    calls_not_in_defs = [call for call in calls if call not in defs]
-    return calls_not_in_defs
-
-
-def get_skill_calls(code_str):
-    calls = get_calls(code_str)
-    skill_manager = SkillManager()
-    skills = skill_manager.all_skills
-    skill_names = [skill.name for skill in skills]
-    return [call for call in calls if call in skill_names]
 
 
 def get_non_function_code(code):
@@ -159,29 +128,6 @@ def get_non_function_code(code):
     non_function_code = "\n".join(ast.unparse(node) for node in non_function_code_nodes)
 
     return non_function_code
-
-
-# class FunctionParser(ast.NodeTransformer):
-#     def __init__(self, fs, f_assigns):
-#         super().__init__()
-#         self._fs = fs
-#         self._f_assigns = f_assigns
-
-#     def visit_Call(self, node):
-#         self.generic_visit(node)
-#         if isinstance(node.func, ast.Name):
-#             f_sig = ast.unparse(node).strip()
-#             f_name = ast.unparse(node.func).strip()
-#             self._fs[f_name] = f_sig
-#         return node
-
-#     def visit_Assign(self, node):
-#         self.generic_visit(node)
-#         if isinstance(node.value, ast.Call):
-#             assign_str = ast.unparse(node).strip()
-#             f_name = ast.unparse(node.value.func).strip()
-#             self._f_assigns[f_name] = assign_str
-#         return node
 
 
 class FunctionCallVisitor(ast.NodeVisitor):

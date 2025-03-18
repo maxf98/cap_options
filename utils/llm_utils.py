@@ -13,19 +13,30 @@ import io
 import base64
 
 import textwrap
+import tiktoken
 
 
 api_key = os.getenv("OPENAI_API_KEY")
 client = openai.OpenAI(api_key=api_key)
 
 
+def num_tokens(messages):
+    encoding = tiktoken.encoding_for_model("gpt-4o")
+    return sum([len(encoding.encode(message["content"])) for message in messages])
+
+
 def query_llm(messages, model="gpt-4o"):
+    print(num_tokens(messages))
     new_messages = []
-    for message in messages:
-        if message["role"] == "system":
-            new_messages.append({"role": "user", "content": message["content"]})
-        else:
-            new_messages.append(message)
+    # reasoning models don't support system prompts...
+    if model != "gpt-4o":
+        for message in messages:
+            if message["role"] == "system":
+                new_messages.append({"role": "user", "content": message["content"]})
+            else:
+                new_messages.append(message)
+    else:
+        new_messages = messages
 
     while True:
         try:

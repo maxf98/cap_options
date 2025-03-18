@@ -21,12 +21,12 @@ class Point3D:
     Basic class for 3D points in cartesian space.
     """
 
-    def __init__(self, x, y, z):
-        self.x, self.y, self.z = x, y, z
-
     x: float
     y: float
     z: float
+
+    def __init__(self, x, y, z):
+        self.x, self.y, self.z = x, y, z
 
     @classmethod
     def from_xyz(cls, xyz):
@@ -38,6 +38,9 @@ class Point3D:
         """return the point as a numpy array"""
         return np.array([self.x, self.y, self.z])
 
+    def translate(self, vec: "Point3D") -> "Point3D":
+        return Point3D(self.x + vec.x, self.y + vec.y, self.z + vec.z)
+
 
 @dataclass
 class Pose:
@@ -48,6 +51,10 @@ class Pose:
 
     position: Point3D
     rotation: Rotation
+
+    def __init__(self, position, rotation=Rotation.identity()):
+        self.position = position
+        self.rotation = rotation
 
 
 def _from_pybullet_pose(pose) -> Pose:
@@ -80,6 +87,22 @@ class AABBBoundingBox:
             abs(self.minPoint.z - self.maxPoint.z),
         )
 
+    def overlaps(self, other_bbox: "AABBBoundingBox") -> bool:
+        """checks if the bounding box overlaps with another bounding box"""
+        x_min1, y_min1, z_min1 = self.minPoint.np_vec
+        x_max1, y_max1, z_max1 = self.maxPoint.np_vec
+        x_min2, y_min2, z_min2 = other_bbox.minPoint.np_vec
+        x_max2, y_max2, z_max2 = other_bbox.maxPoint.np_vec
+
+        return (
+            x_max1 > x_min2
+            and x_max2 > x_min1
+            and y_max1 > y_min2
+            and y_max2 > y_min1
+            and z_max1 > z_min2
+            and z_max2 > z_min1
+        )
+
 
 @dataclass
 class TaskObject:
@@ -107,4 +130,4 @@ class Workspace:
     z-axis: down to up
     """
 
-    bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.5]])
+    bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.3]])

@@ -13,6 +13,17 @@ def add_block(
 If the pose is left unspecified, a random collision-free pose is selected
  \"\"\"
 
+
+def add_zone(
+        self,
+        env: Environment,
+        color: str,
+        scale: float = 1,
+        pose: Pose = None
+    ):
+\"\"\" adds a zone of a given size and color to the environment
+If the pose is left unspecified, a random pose in the workspace is selected
+ \"\"\"
 """
 
 

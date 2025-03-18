@@ -7,9 +7,22 @@ def get_core_types_text():
         source_code = file.read()
 
     tree = ast.parse(source_code)
-    class_defs = [node for node in tree.body if isinstance(node, ast.ClassDef)]
-    api_str = "\n\n".join([ast.unparse(node) for node in class_defs])
+    class_defs = []
 
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            # Keep only function headers and docstrings
+            for subnode in node.body:
+                if isinstance(subnode, ast.FunctionDef):
+                    subnode.body = [
+                        stmt
+                        for stmt in subnode.body
+                        if isinstance(stmt, ast.Expr)
+                        and isinstance(stmt.value, ast.Str)
+                    ]
+            class_defs.append(node)
+
+    api_str = "\n\n".join([ast.unparse(node) for node in class_defs])
     return api_str
 
 
@@ -62,6 +75,6 @@ def extract_functions(filepath):
 
 
 if __name__ == "__main__":
-    print(get_core_primitives_text())
+    # print(get_core_primitives_text())
     print("___________________")
     print(get_core_types_text())

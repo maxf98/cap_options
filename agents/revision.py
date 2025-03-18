@@ -1,83 +1,114 @@
 from utils.cap_utils import cap_code_exec
 from tasks.task import Task
-from tasks.environment_configuration import EnvironmentConfiguration
+from agents.model import EnvironmentConfiguration, Skill, TaskExample
+from agents.memory import MemoryManager
+from agents.environment import EnvironmentAgent
 from environments.environment import Environment
 
 
-def test_revision(initial_config, final_config, code):
-    env = Environment(
-        "environments/assets",
-        disp=False,
-        shared_memory=False,
-        hz=480,
-        record_cfg={
-            "save_video": False,
-            "save_video_path": "${data_dir}/${task}-cap/videos/",
-            "add_text": True,
-            "add_task_text": True,
-            "fps": 20,
-            "video_height": 640,
-            "video_width": 720,
-        },
-    )
-    task = Task()
-    task.config = initial_config
-    env.set_task(task)
-    env.reset()
+class RevisionAgent:
+    def __init__(
+        self,
+        memory_manager: MemoryManager,
+        env_agent: EnvironmentAgent,
+    ):
+        self.memory_manager = memory_manager
+        self.env_agent = env_agent
 
-    cap_code_exec(code, env)
+    def test_modified_skill_on_past_task_examples(
+        self, skill: Skill, modified_skill_code
+    ) -> TaskExample | None:
+        """code change has been proposed - tests whether prior task sequences are still solved by the updated code
+        assumes this function is run before actually committing skill and task example
+        """
+        task_examples = self.memory_manager.skill_task_examples(skill)
 
-    attempt_final_config = task.get_current_configuration(env)
-    return attempt_final_config == final_config
+        current_task = self.env_agent.current_task
+        current_config = self.env_agent.get_current_config()
 
+        is_failure = False
 
-def generate_sample_configs():
-    env = Environment(
-        "environments/assets",
-        disp=True,
-        shared_memory=False,
-        hz=480,
-        record_cfg={
-            "save_video": False,
-            "save_video_path": "${data_dir}/${task}-cap/videos/",
-            "add_text": True,
-            "add_task_text": True,
-            "fps": 20,
-            "video_height": 640,
-            "video_width": 720,
-        },
-    )
+        for task_example in task_examples:
+            print(f"testing task example {task_example.task}")
+            code = modified_skill_code + "\n\n" + task_example.code
+            did_solve_task = self.test_revision(
+                code,
+                task_example.initial_config,
+                task_example.final_config,
+                self.env_agent.env,
+            )
+            print(did_solve_task)
 
-    from tasks.tasks.stack import Stack
-    from utils import core_primitives as cp
+            if not did_solve_task:
+                how_to_handle = input("how to handle this? (skip, discard, accept)")
+                match how_to_handle:
+                    case "skip":
+                        continue
+                    case "discard":
+                        self.memory_manager.example_manager.delete_example(task_example)
+                        skill.remove_task_example(task_example)
+                        skill.dump()
+                        continue
+                    case "accept":
+                        is_failure = True
+                        break
 
-    cp.env = env
+        self.env_agent.set_to_task_and_config(current_task.lang_goal, current_config)
 
-    task = Stack()
-    env.set_task(task)
-    env.reset()
-    initial_config = task.get_current_configuration(env)
-    initial_config.dump("initial.pkl")
+        return is_failure
 
-    blocks = cp.get_objects()
-    placePose = cp.get_object_pose(blocks[0])
-    pickPose = cp.get_object_pose(blocks[1])
-    cp.put_first_on_second(pickPose, placePose)
+    def test_revision(
+        self,
+        code,
+        initial_config: EnvironmentConfiguration,
+        final_config: EnvironmentConfiguration,
+        env: Environment,
+    ) -> bool:
+        """should add code here to somehow handle when configurations are not equal
+        should review - if they're equal we don't need to look, but if they aren't then we should check if it isn't possibly still good enough
+        """
+        # print(initial_config)
+        # print(final_config)
+        attempt_final_config = self.run_and_get_final_config(code, initial_config, env)
+        return attempt_final_config == final_config
 
-    final_config = task.get_current_configuration(env)
-    final_config.dump("final.pkl")
+    def run_and_get_final_config(
+        self, code, initial_config: EnvironmentConfiguration, env: Environment
+    ) -> EnvironmentConfiguration:
 
+        task = Task()
+        task.config = initial_config
+        env.set_task(task)
+        env.reset()
 
-code = """
-blocks = get_objects()
-placePose = get_object_pose(blocks[0])
-pickPose = get_object_pose(blocks[0])
-put_first_on_second(pickPose, placePose)
-"""
+        cap_code_exec(
+            code, env, self.memory_manager.skill_manager.resolve_dependencies(code)
+        )
+
+        attempt_final_config = task.get_current_configuration(env)
+
+        return attempt_final_config
+
 
 if __name__ == "__main__":
-    generate_sample_configs()
-    initial_config = EnvironmentConfiguration.from_path("initial.pkl")
-    final_config = EnvironmentConfiguration.from_path("final.pkl")
+    pass
+    # skill = Skill.retrieve_skill_with_name("make_line_with_blocks")
+    # modified_skill_code = skill.code
 
-    print(test_revision(initial_config, final_config, code))
+    # env = Environment(
+    #     "environments/assets",
+    #     disp=True,
+    #     shared_memory=False,
+    #     hz=480,
+    #     record_cfg={
+    #         "save_video": False,
+    #         "save_video_path": "${data_dir}/${task}-cap/videos/",
+    #         "add_text": True,
+    #         "add_task_text": True,
+    #         "fps": 20,
+    #         "video_height": 640,
+    #         "video_width": 720,
+    #     },
+    # )
+
+    # test_modified_skill_on_past_task_examples(skill, modified_skill_code, env)

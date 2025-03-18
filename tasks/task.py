@@ -78,7 +78,7 @@ class Task(Task):
     def add_block(
         self,
         env: Environment,
-        color: str = None,
+        color: str = "red",
         size: tuple[float, float, float] = (0.04, 0.04, 0.04),
         pose: Pose = None,
         collision_free: bool = True,
@@ -117,15 +117,25 @@ class Task(Task):
         self,
         env: Environment,
         color: str,
-        size: tuple[float, float, float] = (0.1, 0.1, 0.01),
+        scale: float = 1,
+        pose: Pose = None,
     ):
-        zone_pose = self.get_random_pose(env, size)
+        _SIZE = (0.1, 0.1, 0.01)
+        SIZE = _SIZE * scale
+        zone_pose = (
+            self.get_random_pose(env, SIZE) if pose is None else _to_pybullet_pose(pose)
+        )
+
         zone_id = env.add_object(
-            "zone/zone.urdf", zone_pose, "fixed", scale=2, color=color
+            "zone/zone.urdf", zone_pose, "fixed", scale=scale, color=color
         )
 
         task_obj = TaskObject(
-            objectType="zone", color=color, id=zone_id, category="fixed", size=size
+            objectType="zone",
+            color=color,
+            id=zone_id,
+            category="fixed",
+            size=SIZE,
         )
         self.taskObjects.append(task_obj)
 
@@ -171,20 +181,28 @@ class Task(Task):
         return storable
 
     def restore_from_config(self, env: Environment, config: EnvironmentConfiguration):
+        self.taskObjects = []
         for obj, pose in config.objects_with_poses:
             if obj.objectType == "block":
                 self.add_block(env, obj.color, obj.size, pose)
+            if obj.objectType == "zone":
+                scale = obj.size[0] / 0.1
+                self.add_zone(env, obj.color, scale, pose)
 
 
 class GeneratedTask(Task):
     def __init__(self):
         super().__init__()
+        self.config = None
         self.task_setup_code = ""
 
     def reset(self, env):
         super().reset(env)
 
         exec(self.task_setup_code)
+
+    def set_config(self, config):
+        self.config = config
 
     def set_task_setup_code(self, code):
         self.task_setup_code = code

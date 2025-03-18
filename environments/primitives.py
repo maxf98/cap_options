@@ -9,7 +9,7 @@ import time
 class PickPlace:
     """Pick and place primitive."""
 
-    def __init__(self, height=0.32, speed=0.01):
+    def __init__(self, height=0.32, speed=0.005):
         self.height, self.speed = height, speed
 
     def __call__(self, movej, movep, ee, pose0, pose1):

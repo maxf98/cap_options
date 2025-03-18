@@ -47,19 +47,30 @@
 # root.mainloop()
 
 
-import multiprocessing
-import time
-def add():
-    while True:
-        x = input("ello")
-        time.sleep(3)
+def get_letter_pixels(letter):
+    """maps a given letter to a (10, 10) array of pixel values,
+    where a 1 represents a letter pixel"""
+    from PIL import Image, ImageDraw, ImageFont
 
-def sud():
-     while True:
-        print(0)
-        time.sleep(3)
-if __name__ == '__main__':
-    p1 = multiprocessing.Process(name='p1', target=add)
-    p = multiprocessing.Process(name='p', target=sud)
-    p1.start()
-    p.start()
+    img_size = (50, 10)  # Adjust as needed
+    img = Image.new("1", img_size, color=0)  # 1-bit image (black & white)
+    draw = ImageDraw.Draw(img)
+
+    # Load a font (you can use a different TTF file)
+    font = ImageFont.load_default()
+
+    # Draw letter
+    draw.text((0, 0), letter, font=font, fill=1)
+
+    # Convert to pixel matrix
+    pixels = list(img.getdata())
+    width, height = img.size
+    pixel_matrix = [pixels[i * width : (i + 1) * width] for i in range(height)]
+    return pixel_matrix
+
+
+import matplotlib.pyplot as plt
+
+pixels = get_letter_pixels("hello")
+plt.imshow(pixels)
+plt.show()

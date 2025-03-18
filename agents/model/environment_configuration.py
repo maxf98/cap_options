@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import uuid
 
-from utils.core_types import TaskObject, Pose, Rotation
+from utils.core_types import TaskObject, Pose, Rotation, Point3D
 
 
 class EnvironmentConfiguration:
@@ -10,10 +10,16 @@ class EnvironmentConfiguration:
     also stores image, s.t. we can choose configs based on images or use image-based retrieval...
     """
 
-    def __init__(self, objects_with_poses: list[TaskObject, Pose] = [], image=None):
+    def __init__(
+        self,
+        objects_with_poses: list[TaskObject, Pose] = [],
+        image=None,
+        description=None,
+    ):
         self.id = uuid.uuid4()
         self.objects_with_poses = objects_with_poses
         self.image = image
+        self.description = description
 
     @classmethod
     def from_path(cls, path) -> "EnvironmentConfiguration":
@@ -27,7 +33,7 @@ class EnvironmentConfiguration:
 
     def __str__(self):
         ret = ""
-        for obj, pose in self.config:
+        for obj, pose in self.objects_with_poses:
             ret += f"{obj.description}: {pose.position} {pose.rotation} \n"
         return ret
 
@@ -52,9 +58,12 @@ class EnvironmentConfiguration:
                     )
                     if symmetry_type != other_symmetry_type:
                         continue
-                    if EnvironmentConfiguration.is_pose_equal(
+                    # if EnvironmentConfiguration.is_pose_equal(
+                    #     pose, otherPose, symmetry_type
+                    # ):
+                    if self.is_pose_equal(
                         pose, otherPose, symmetry_type
-                    ):
+                    ):  # if self.is_pos_equal(pose.position, otherPose.position):
                         found_match = True
                         break
                 if not found_match:
@@ -62,23 +71,24 @@ class EnvironmentConfiguration:
             return True
         return False
 
-    @staticmethod
-    def is_pose_equal(poseA: Pose, poseB: Pose, symmetry_type):
-        is_pos_equal = np.allclose(
-            poseA.position.np_vec, poseB.position.np_vec, atol=0.01
+    def is_pose_equal(self, poseA: Pose, poseB: Pose, symmetry_type):
+        return self.is_pos_equal(poseA.position, poseB.position) and self.is_rot_equal(
+            poseA.rotation, poseB.rotation, symmetry_type
         )
-        if not is_pos_equal:
-            return False
 
+    def is_pos_equal(self, posA: Point3D, posB: Point3D):
+        return np.allclose(posA.np_vec, posB.np_vec, atol=0.01)
+
+    def is_rot_equal(self, rotA: Rotation, rotB: Rotation, symmetry_type):
         canonRotA = EnvironmentConfiguration.canonicalize_rotation(
-            poseA.rotation, symmetry_type=symmetry_type
+            rotA, symmetry_type=symmetry_type
         )
         canonRotB = EnvironmentConfiguration.canonicalize_rotation(
-            poseB.rotation, symmetry_type=symmetry_type
+            rotB, symmetry_type=symmetry_type
         )
 
-        is_rot_equal = np.allclose(canonRotA, canonRotB, atol=0.01)
-        return is_rot_equal
+        is_equal = np.allclose(canonRotA, canonRotB, atol=0.01)
+        return is_equal
 
     @staticmethod
     def get_symmetry_type(size: tuple[float, float, float]):

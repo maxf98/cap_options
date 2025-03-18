@@ -1,11 +1,10 @@
-import uuid, os, pickle, ast
-from agents.model.config import EXAMPLE_DIR
+import uuid, os, pickle, ast, re
 from agents.model.environment_configuration import EnvironmentConfiguration
 
 
 """
-when a successful attempt trace is stored, the task should also be revised to incorporate the feedback rounds, 
-to specify the task if it was ill-posed initially...
+TODO: revise task description based on feedback/initial state?
+like GCRL - append state with current goal...
 """
 
 
@@ -16,6 +15,7 @@ class TaskExample:
         code: str,
         initial_config: EnvironmentConfiguration,
         final_config: EnvironmentConfiguration,
+        skill_code: str = None,
     ):
         self.id = uuid.uuid4()
         self.task = task
@@ -24,15 +24,17 @@ class TaskExample:
         self.initial_config = initial_config
         self.final_config = final_config
 
-    @property
-    def save_dir(self):
-        return f"{EXAMPLE_DIR}/{self.id}"
+        # optionally also attach the code for the function that was learned with this task
+        self.skill_code = skill_code
 
-    def dump(self):
-        os.makedirs(self.save_dir, exist_ok=True)
-        with open(f"{self.save_dir}/code.py", "w") as file:
-            file.write(f"# TASK:{self.task}\n\n{self.code}")
-        with open(f"{self.save_dir}/example.pkl", "wb") as file:
+    def __str__(self):
+        print(self.task)
+
+    def dump(self, dir):
+        os.makedirs(dir, exist_ok=True)
+        with open(f"{dir}/code.py", "w") as file:
+            file.write(f"# TASK: {self.task}\n\n{self.code}")
+        with open(f"{dir}/example.pkl", "wb") as file:
             pickle.dump(self, file)
 
     def get_skill_headers(self):
@@ -42,10 +44,25 @@ class TaskExample:
         return funcs
 
     @staticmethod
-    def retrieve_task_with_id(id) -> "TaskExample":
-        with open(f"{EXAMPLE_DIR}/{id}/example.pkl", "rb") as file:
-            example = pickle.load(file)
+    def parse_code_file(file):
+        with open(file, "r") as file:
+            code = file.read()
+
+        match = re.search(r"#TASK:\s*(.*?)(?=\n\S|$)", code, re.DOTALL)
+
+        if match:
+            task_text = match.group(1).strip()
+            rest_of_file = code[: match.start()] + code[match.end() :]
+        else:
+            task_text = None
+            rest_of_file = code
+
+        example = TaskExample(task=task_text, code=rest_of_file)
 
         return example
 
 
+if __name__ == "__main__":
+    example = TaskExample.parse_code_file("example.py")
+    example.dump("example")
+    print(example.get_skill_headers())

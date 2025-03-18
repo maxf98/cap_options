@@ -1,5 +1,6 @@
 import chromadb
-from agents.skill import Skill, SkillManager
+from agents.model import Skill
+from agents.memory import SkillManager, MemoryManager
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
@@ -9,7 +10,8 @@ import mplcursors
 
 
 def get_ids_and_embeddings():
-    skill_manager = SkillManager()
+    memory_manager = MemoryManager()
+    skill_manager = memory_manager.skill_manager
     ids, embeddings = skill_manager.get_all_skill_embeddings()
     return ids, embeddings
 

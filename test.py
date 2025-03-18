@@ -3,6 +3,8 @@ from tasks.task import EnvironmentConfiguration
 import time
 import pybullet as p
 
+import numpy as np
+
 from utils.core_types import *
 
 
@@ -11,6 +13,6 @@ def main():
     print("hello")
 """
 if __name__ == "__main__":
-    new_code = code.replace("main", "hello")
-    print(new_code)
-    
+    a = (0, 1, 0)
+    b = (0.2, 0.03, 0.2)
+    print(np.multiply(a, b))

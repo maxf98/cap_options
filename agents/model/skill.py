@@ -1,6 +1,6 @@
 import os, pickle, ast
 
-from agents.model.config import SKILL_DIR
+from agents.model.example import TaskExample
 
 
 class Skill:
@@ -10,41 +10,32 @@ class Skill:
         code,
         task_examples=[],
         is_core_primitive=False,
-        is_tentative=False
     ):
         self.name = name
         self.code = code
-        self.task_examples = task_examples
+        self._task_examples = task_examples
         self.is_core_primitive = is_core_primitive
-
-    @property
-    def save_dir(self):
-        return f"{SKILL_DIR}/{self.name}"
 
     def __str__(self):
         # return self.description
         return self.code if not self.is_core_primitive else self.description
 
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Skill):
+            return self.name == other.name
+        return False
+
     @property
     def description(self):
         return f"{self.function_signature}\n{self.docstring}"
 
-    def dump(self):
+    def dump(self, dir):
         """store the skill in some readable way so we can inspect it..."""
-        os.makedirs(self.save_dir, exist_ok=True)
-        with open(f"{self.save_dir}/code.py", "w") as file:
+        os.makedirs(dir, exist_ok=True)
+        with open(f"{dir}/code.py", "w") as file:
             file.write(self.code)
-        with open(f"{self.save_dir}/skill.pkl", "wb") as file:
+        with open(f"{dir}/skill.pkl", "wb") as file:
             pickle.dump(self, file)
-
-    @staticmethod
-    def retrieve_skill_with_name(name) -> "Skill":
-        # with open(f"{SKILL_DIR}/{name}/code.py", "r") as file:
-        #     skill_code = file.read()
-        with open(f"{SKILL_DIR}/{name}/skill.pkl", "rb") as file:
-            skill = pickle.load(file)
-
-        return skill
 
     @staticmethod
     def parse_function_string(code_string: str) -> "Skill":
@@ -86,3 +77,14 @@ class Skill:
             if isinstance(node, ast.FunctionDef):  # Ensure it's a function definition
                 return ast.get_docstring(node)
         return None
+
+    def add_task_example(self, task_example: TaskExample):
+        if task_example.id not in self._task_examples:
+            self._task_examples.append(str(task_example.id))
+
+    def remove_task_example(self, task_example: TaskExample):
+        self._task_examples.remove(str(task_example.id))
+
+    @staticmethod
+    def print_skills(skills: list["Skill"]):
+        print("\n".join([skill.name for skill in skills]))

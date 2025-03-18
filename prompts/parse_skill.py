@@ -1,4 +1,6 @@
 from prompts.prompt_utils import get_core_types_text
+from agents.model import Skill
+from pydantic import BaseModel
 
 
 generate_function_header_system_prompt = f"""
@@ -18,14 +20,39 @@ Do not try to implement the function yet, that happens later.
     
 You should adhere to the following types:
 {get_core_types_text()}
+
+The functions don't need Workspace as an argument, since there is only one.
 """
-# Could just try implementing the function body....
 
 
-def refine_function_header_prompt(function_header, refinement):
+def generate_skill_prompt(prompt, similar_skills: list[Skill]):
     return f"""
-    Revise the following python function header according to the user instructions:
-    {function_header}
+    you may use the following function headers as examples of what you are trying to generate:
+    {"\n".join([skill.description for skill in similar_skills])}
+    --------------------------------------------------
+    write a function header for the prompt: {prompt}.
+    """
+
+
+def refine_function_header_prompt(function_code, refinement):
+    return f"""
+    Your role is to refine an existing python function, for example by adding a function argument or changing the name.
+    If the function is implemented (i.e. not just "pass"), you should also alter the implementation accordingly, making as little changes and assumptions as possible.
+    Revise the following python function according to the user instructions:
+    {function_code}
     Refinement prompt:
     {refinement}
+    Do not make any assumptions.
+    """
+
+
+class ParsedList(BaseModel):
+    parsed_list: list[str]
+
+
+def parse_hint_to_list_prompt(hint):
+    return f"""
+    The user provided a list of tasks that are similar to the one you are currently trying to solve, in a single string.
+    Retrieve each of the task descriptions from this string, and return them as a list.
+    This is the string: {hint}
     """

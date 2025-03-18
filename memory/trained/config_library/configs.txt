@@ -1,0 +1,8 @@
+Jenga tower in the middle of the workspace
+Workspace is clear.
+'x' in the middle of the workspace
+Blocks aligned on the left side of the workspace
+'HELLO' written starting from the top-left corner of the workspace.
+Red block and green block with their longer sides touching.
+red block next to green block
+Red block in the center of the workspace, green block to the right of the red block.

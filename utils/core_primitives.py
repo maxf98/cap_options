@@ -1,6 +1,7 @@
 import numpy as np
 from utils.core_types import *
 from utils.core_types import _from_pybullet_pose, _to_pybullet_pose
+import utils.general_utils as utils
 
 import pybullet as p
 
@@ -16,29 +17,34 @@ IMPORTANT
 - pybullet can only handle one server at a time, if this is not commented out, this is the environment being used
 """
 
-# env = Environment(
-#     "/Users/maxfest/vscode/thesis/ravens/environments/assets",
-#     disp=True,
-#     shared_memory=False,
-#     hz=480,
-#     record_cfg={
-#         "save_video": False,
-#         "save_video_path": "${data_dir}/${task}-cap/videos/",
-#         "add_text": True,
-#         "add_task_text": True,
-#         "fps": 20,
-#         "video_height": 640,
-#         "video_width": 720,
-#     },
-# )
-# from tasks.tasks.place_blocks import Place5Blocks
+env = Environment(
+    "/Users/maxfest/vscode/thesis/ravens/environments/assets",
+    disp=True,
+    shared_memory=False,
+    hz=480,
+    record_cfg={
+        "save_video": False,
+        "save_video_path": "${data_dir}/${task}-cap/videos/",
+        "add_text": True,
+        "add_task_text": True,
+        "fps": 20,
+        "video_height": 640,
+        "video_width": 720,
+    },
+)
+from tasks.tasks.place_blocks import Place5Blocks
+from environments.grippers import Spatula
 
-# env.set_task(Place5Blocks())
-# env.reset()
+task = Place5Blocks()
+# task.ee = Spatula
+
+env.set_task(task)
+env.reset()
 """-----------------------------------------------------------------------------"""
 
 __all__ = [
     "get_objects",
+    "get_object_size",
     "get_object_pose",
     "get_end_effector_pose",
     "put_first_on_second",
@@ -46,12 +52,22 @@ __all__ = [
     "move_end_effector_to",
     "get_bbox",
     "get_point_at_distance_and_rotation_from_point",
+    "compute_center_from_size_and_corner_pose",
+    "activate_end_effector",
+    "release_end_effector",
+    "check_grasp",
+    "pick",
 ]
 
 
 def get_object_pose(obj: TaskObject) -> Pose:
     """returns the pose (Point3d, Rotation) of a given object in the environment."""
     return _from_pybullet_pose(env.get_object_pose(obj.id))
+
+
+def get_object_size(task_object: TaskObject) -> tuple[float, float, float]:
+    """Returns the size of the given TaskObject as a tuple (width, depth, height)."""
+    return task_object.size
 
 
 def get_end_effector_pose() -> Pose:
@@ -71,22 +87,23 @@ def get_objects() -> list[TaskObject]:
     return env.task.taskObjects
 
 
-def move_end_effector_to(pose: Pose):
+def move_end_effector_to(pose: Pose, speed=0.001):
     """moves the end effector from its current Pose to a given new Pose"""
-    ee_pose = get_end_effector_pose()
+    env.movep(_to_pybullet_pose(pose), speed=speed)
+    # ee_pose = get_end_effector_pose()
 
-    max_steps = 100
-    step = 0
-    while (
-        not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
-        or not np.allclose(
-            pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
-        )
-    ) and step < max_steps:
-        env.movep(_to_pybullet_pose(pose), speed=0.0005)
-        env.step_simulation()
-        ee_pose = get_end_effector_pose()
-        step += 1
+    # max_steps = 100
+    # step = 0
+    # while (
+    #     not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
+    #     or not np.allclose(
+    #         pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
+    #     )
+    # ) and step < max_steps:
+    #     env.movep(_to_pybullet_pose(pose), speed=speed)
+    #     env.step_simulation()
+    #     ee_pose = get_end_effector_pose()
+    #     step += 1
 
 
 def put_first_on_second(pickPose: Pose, placePose: Pose):
@@ -123,29 +140,87 @@ def say(msg: str):
     return msg
 
 
+def compute_center_from_size_and_corner_pose(
+    size: tuple[float, float], pose: Pose
+) -> Point3D:
+    """utility function to compute the center of a rectangle, based on the pose from its top-left corner"""
+    center = get_point_at_distance_and_rotation_from_point(
+        pose.position, pose.rotation, size[0] / 2
+    )
+    center = get_point_at_distance_and_rotation_from_point(
+        center, pose.rotation, size[1] / 2, [0, 1, 0]
+    )
+
+    return center
+
+
+def activate_end_effector():
+    """activates the gripper - if there is an object in contact with the gripper, it will grasp this object
+    if there is no object, it just won't work"""
+    env.ee.activate()
+
+
+def release_end_effector():
+    """releases the end effector, and any object that was previously grasped"""
+    import time
+
+    env.ee.release()
+    for _ in range(500):
+        p.stepSimulation()
+        time.sleep(1 / 400)
+
+
+def check_grasp() -> bool:
+    """checks whether the gripper is currently holding an object"""
+    return env.ee.check_grasp()
+
+
+def pick(object: TaskObject) -> bool:
+    """moves end effector to the pick pose and activates"""
+    object_pose = get_object_pose(object)
+    size = get_object_size(object)
+    pick_pose = Pose(
+        object_pose.position.translate(Point3D(0, 0, size[2] / 2)), object_pose.rotation
+    )
+    pick_pose = _to_pybullet_pose(pick_pose)
+    speed = 0.001
+    # Execute picking primitive.
+    prepick_to_pick = ((0, 0, 0.32), (0, 0, 0, 1))
+    prepick_pose = utils.multiply(pick_pose, prepick_to_pick)
+    timeout = env.movep(prepick_pose, speed)
+
+    # Move towards pick pose until contact is detected.
+    delta = (np.float32([0, 0, -0.001]), utils.eulerXYZ_to_quatXYZW((0, 0, 0)))
+    targ_pose = prepick_pose
+    while not env.ee.detect_contact():  # and target_pose[2] > 0:
+        targ_pose = utils.multiply(targ_pose, delta)
+        timeout |= env.movep(targ_pose)
+        if timeout:
+            return True
+
+    # Activate end effector, move up, and check picking success.
+    env.ee.activate()
+    pick_success = env.ee.check_grasp()
+    return pick_success
+
+
 if __name__ == "__main__":
 
     import time
 
-    cur_ee_pose = get_end_effector_pose()
-    pose = Pose(cur_ee_pose.position, Rotation.from_euler("y", 90, degrees=True))
-    move_end_effector_to(pose)
-
-    # blockA = get_objects()[0]
-    # blockB = get_objects()[1]
-    # blockC = get_objects()[2]
-
-    # pose = get_object_pose(blockA)
-
-    # new_pos = get_point_at_distance_and_rotation_from_point(
-    #     pose.position, pose.rotation, blockA.size[0] + 0.005
-    # )
-    # new_pose = Pose(new_pos, pose.rotation)
-
-    # put_first_on_second(get_object_pose(blockB), new_pose)
-
-    # other_new_pos = get_point_at_distance_and_rotation_from_point(
-    #     pose.position, pose.rotation, blockA.size[0] + 0.005, direction=[0, 1, 0]
-    # )
-    # other_new_pose = Pose(other_new_pos, pose.rotation)
-    # put_first_on_second(get_object_pose(blockC), other_new_pose)
+    objects = get_objects()
+    block = objects[0]
+    block_pose = get_object_pose(block)
+    place_pose = Pose(
+        block_pose.position,
+        block_pose.rotation * Rotation.from_euler("z", 90, degrees=True),
+    )
+    put_first_on_second(block_pose, place_pose)
+    # succ = pick(block)
+    # print(succ)
+    # pose = get_end_effector_pose()
+    # lift_pos = pose.position.translate(Point3D(0, 0, 0.32))
+    # move_end_effector_to(Pose(lift_pos, pose.rotation))
+    # time.sleep(1)
+    # rotate_end_effector(45)
+    # time.sleep(2)

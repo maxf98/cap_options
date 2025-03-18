@@ -8,14 +8,13 @@ class Place5Blocks(Task):
 
     def reset(self, env):
         super().reset(env)
-        self.add_block(env, "red")
-        self.add_blocks(env, 4, "blue")
+        self.add_block(env, "red", size=(0.1, 0.02, 0.02))
 
 
 class Place2Blocks(Task):
     def __init__(self):
         super().__init__()
-        self.lang_goal = "place one block right next to the other, such that the edges align and the corners touch"
+        self.lang_goal = "place the green block next to the yellow block"
 
     def reset(self, env):
         super().reset(env)

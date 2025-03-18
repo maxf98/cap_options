@@ -666,7 +666,7 @@ class Environment(gym.Env):
 
         self.video_writer.append_data(color)
 
-    def movep(self, pose, speed=0.01):
+    def movep(self, pose, speed=0.001):
         """Move UR5 to target end effector pose."""
         targj = self.solve_ik(pose)
         return self.movej(targj, speed)
