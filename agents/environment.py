@@ -75,7 +75,7 @@ class EnvironmentAgent:
 
     def setup_environment(self):
         env = Environment(
-            "environments/assets",
+            "/Users/maxfest/vscode/thesis/thesis/environments/assets",
             disp=True,
             shared_memory=False,
             hz=480,

@@ -17,29 +17,29 @@ IMPORTANT
 - pybullet can only handle one server at a time, if this is not commented out, this is the environment being used
 """
 
-env = Environment(
-    "/Users/maxfest/vscode/thesis/ravens/environments/assets",
-    disp=True,
-    shared_memory=False,
-    hz=480,
-    record_cfg={
-        "save_video": False,
-        "save_video_path": "${data_dir}/${task}-cap/videos/",
-        "add_text": True,
-        "add_task_text": True,
-        "fps": 20,
-        "video_height": 640,
-        "video_width": 720,
-    },
-)
-from tasks.tasks.place_blocks import Place5Blocks
-from environments.grippers import Spatula
+# env = Environment(
+#     "/Users/maxfest/vscode/thesis/thesis/environments/assets",
+#     disp=True,
+#     shared_memory=False,
+#     hz=480,
+#     record_cfg={
+#         "save_video": False,
+#         "save_video_path": "${data_dir}/${task}-cap/videos/",
+#         "add_text": True,
+#         "add_task_text": True,
+#         "fps": 20,
+#         "video_height": 640,
+#         "video_width": 720,
+#     },
+# )
+# from tasks.tasks.place_blocks import Place5Blocks
+# from environments.grippers import Spatula
 
-task = Place5Blocks()
-# task.ee = Spatula
+# task = Place5Blocks()
+# # task.ee = Spatula
 
-env.set_task(task)
-env.reset()
+# env.set_task(task)
+# env.reset()
 """-----------------------------------------------------------------------------"""
 
 __all__ = [
@@ -89,21 +89,25 @@ def get_objects() -> list[TaskObject]:
 
 def move_end_effector_to(pose: Pose, speed=0.001):
     """moves the end effector from its current Pose to a given new Pose"""
-    env.movep(_to_pybullet_pose(pose), speed=speed)
-    # ee_pose = get_end_effector_pose()
+    suction_height = 0.05
+    pose0 = _to_pybullet_pose(get_end_effector_pose())
+    pose1 = _to_pybullet_pose(pose)
+    pos0 = np.float32(pose0[0])
+    pos1 = np.float32((pose1[0][0], pose1[0][1], pose1[0][2] + suction_height))
+    vec = np.float32(pos1) - np.float32(pos0)
+    length = np.linalg.norm(vec)
+    vec = vec / length
+    pos0 -= vec * 0.02
+    pos1 -= vec * 0.05
 
-    # max_steps = 100
-    # step = 0
-    # while (
-    #     not np.allclose(pose.position.np_vec, ee_pose.position.np_vec, atol=1e-3)
-    #     or not np.allclose(
-    #         pose.rotation.as_matrix(), ee_pose.rotation.as_matrix(), atol=1e-3
-    #     )
-    # ) and step < max_steps:
-    #     env.movep(_to_pybullet_pose(pose), speed=speed)
-    #     env.step_simulation()
-    #     ee_pose = get_end_effector_pose()
-    #     step += 1
+    rot = (pose1[1] + np.pi) % (2 * np.pi) - np.pi
+    timeout = env.movep((pos0, rot))
+
+    n_push = np.int32(np.floor(np.linalg.norm(pos1 - pos0) / 0.01))
+    for _ in range(n_push):
+        target = pos0 + vec * n_push * 0.01
+        timeout |= env.movep((target, rot), speed=speed)
+    timeout |= env.movep((pos1, rot), speed=speed)
 
 
 def put_first_on_second(pickPose: Pose, placePose: Pose):
@@ -210,12 +214,22 @@ if __name__ == "__main__":
 
     objects = get_objects()
     block = objects[0]
+    pick(block)
     block_pose = get_object_pose(block)
-    place_pose = Pose(
-        block_pose.position,
-        block_pose.rotation * Rotation.from_euler("z", 90, degrees=True),
-    )
-    put_first_on_second(block_pose, place_pose)
+    pose = get_end_effector_pose()
+    lifted_pose = Pose(pose.position.translate(Point3D(0, 0, 0.02)), pose.rotation)
+    # print(pose)
+    # print(lifted_pose)
+    move_end_effector_to(lifted_pose)
+    time.sleep(1)
+    # rotated_pose = Pose(lifted_pose.position, Rotation.from_euler('z', 45, degrees=True))
+    # move_end_effector_to(rotated_pose)
+    # time.sleep(1)
+    # rotated_pose = Pose(lifted_pose.position, rotated_pose.rotation * Rotation.from_euler('z', 45, degrees=True))
+    # move_end_effector_to(rotated_pose)
+    # time.sleep(1)
+    # move_end_effector_to(Pose(Point3D(0.5, 0.2, 0.05), Rotation.identity()))
+    # time.sleep(1)
     # succ = pick(block)
     # print(succ)
     # pose = get_end_effector_pose()
