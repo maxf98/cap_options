@@ -17,29 +17,29 @@ IMPORTANT
 - pybullet can only handle one server at a time, if this is not commented out, this is the environment being used
 """
 
-# env = Environment(
-#     "/Users/maxfest/vscode/thesis/thesis/environments/assets",
-#     disp=True,
-#     shared_memory=False,
-#     hz=480,
-#     record_cfg={
-#         "save_video": False,
-#         "save_video_path": "${data_dir}/${task}-cap/videos/",
-#         "add_text": True,
-#         "add_task_text": True,
-#         "fps": 20,
-#         "video_height": 640,
-#         "video_width": 720,
-#     },
-# )
-# from tasks.tasks.place_blocks import Place5Blocks
-# from environments.grippers import Spatula
+env = Environment(
+    "/Users/maxfest/vscode/thesis/thesis/environments/assets",
+    disp=True,
+    shared_memory=False,
+    hz=480,
+    record_cfg={
+        "save_video": False,
+        "save_video_path": "${data_dir}/${task}-cap/videos/",
+        "add_text": True,
+        "add_task_text": True,
+        "fps": 20,
+        "video_height": 640,
+        "video_width": 720,
+    },
+)
+from tasks.tasks.place_blocks import Place5Blocks
+from environments.grippers import Spatula
 
-# task = Place5Blocks()
-# # task.ee = Spatula
+task = Place5Blocks()
+# task.ee = Spatula
 
-# env.set_task(task)
-# env.reset()
+env.set_task(task)
+env.reset()
 """-----------------------------------------------------------------------------"""
 
 __all__ = [
@@ -52,7 +52,6 @@ __all__ = [
     "move_end_effector_to",
     "get_bbox",
     "get_point_at_distance_and_rotation_from_point",
-    "compute_center_from_size_and_corner_pose",
     "activate_end_effector",
     "release_end_effector",
     "check_grasp",
@@ -144,20 +143,6 @@ def say(msg: str):
     return msg
 
 
-def compute_center_from_size_and_corner_pose(
-    size: tuple[float, float], pose: Pose
-) -> Point3D:
-    """utility function to compute the center of a rectangle, based on the pose from its top-left corner"""
-    center = get_point_at_distance_and_rotation_from_point(
-        pose.position, pose.rotation, size[0] / 2
-    )
-    center = get_point_at_distance_and_rotation_from_point(
-        center, pose.rotation, size[1] / 2, [0, 1, 0]
-    )
-
-    return center
-
-
 def activate_end_effector():
     """activates the gripper - if there is an object in contact with the gripper, it will grasp this object
     if there is no object, it just won't work"""
@@ -212,29 +197,5 @@ if __name__ == "__main__":
 
     import time
 
-    objects = get_objects()
-    block = objects[0]
-    pick(block)
-    block_pose = get_object_pose(block)
-    pose = get_end_effector_pose()
-    lifted_pose = Pose(pose.position.translate(Point3D(0, 0, 0.02)), pose.rotation)
-    # print(pose)
-    # print(lifted_pose)
-    move_end_effector_to(lifted_pose)
-    time.sleep(1)
-    # rotated_pose = Pose(lifted_pose.position, Rotation.from_euler('z', 45, degrees=True))
-    # move_end_effector_to(rotated_pose)
-    # time.sleep(1)
-    # rotated_pose = Pose(lifted_pose.position, rotated_pose.rotation * Rotation.from_euler('z', 45, degrees=True))
-    # move_end_effector_to(rotated_pose)
-    # time.sleep(1)
-    # move_end_effector_to(Pose(Point3D(0.5, 0.2, 0.05), Rotation.identity()))
-    # time.sleep(1)
-    # succ = pick(block)
-    # print(succ)
-    # pose = get_end_effector_pose()
-    # lift_pos = pose.position.translate(Point3D(0, 0, 0.32))
-    # move_end_effector_to(Pose(lift_pos, pose.rotation))
-    # time.sleep(1)
-    # rotate_end_effector(45)
-    # time.sleep(2)
+    move_end_effector_to(Pose(Point3D(0.5, 0.5, 0.05)), speed=0.001)
+    move_end_effector_to(Pose(Point3D(0.5, -0.5, 0.05)), speed=0.001)

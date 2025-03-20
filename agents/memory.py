@@ -83,9 +83,15 @@ class SkillManager:
         if self.num_skills == 0:
             self.add_core_primitives_to_library()
 
-        # check if there are any skills which have not been added to the vector db and if so add them (to enable manual adding of skills)
         all_skills = os.listdir(self.SKILL_DIR)
         stored_skills = self.vector_db.get()["ids"]
+        # check if there are any deleted skills, and if so, remove them from the vector db
+        for skill_name in stored_skills:
+            if skill_name not in all_skills:
+                print(f"deleting {skill_name}")
+                self.vector_db.delete(ids=[skill_name])
+
+        # check if there are any skills which have not been added to the vector db and if so add them (to enable manual adding of skills)
         for skill_name in all_skills:
             if skill_name not in stored_skills:
                 with open(f"{self.SKILL_DIR}/{skill_name}/code.py", "r") as file:

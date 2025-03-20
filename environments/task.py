@@ -28,7 +28,7 @@ class Task:
         self.task_difficulty_level = "easy"
         self.input_manipulate_order = False
 
-        self.sixdof = False
+        self.sixdof = True
         self.primitive = primitives.PickPlace()
         self.oracle_cams = cameras.Oracle.CONFIG
         self.rng = None

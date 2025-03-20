@@ -8,7 +8,11 @@ class Place5Blocks(Task):
 
     def reset(self, env):
         super().reset(env)
-        self.add_block(env, "red", size=(0.1, 0.02, 0.02))
+        self.add_block(env, "blue", size=(0.3, 0.03, 0.03))
+        self.add_blocks(env, num_blocks=10, color="red", size=(0.02, 0.02, 0.02))
+        self.add_blocks(env, num_blocks=7, color="gray", size=(0.04, 0.04, 0.04))
+        self.add_blocks(env, num_blocks=3, color="yellow", size=(0.05, 0.05, 0.05))
+        self.add_block(env, "green", size=(0.1, 0.1, 0.1))
 
 
 class Place2Blocks(Task):

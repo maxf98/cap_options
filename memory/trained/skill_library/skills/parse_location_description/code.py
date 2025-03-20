@@ -31,6 +31,14 @@ def parse_location_description(location_description: str) -> Point3D:
         return Point3D(0.75, 0.0, 0.0)  # Middle of the front edge
     elif location_description == "middle of the back edge":
         return Point3D(0.25, 0.0, 0.0)  # Middle of the back edge
+    elif location_description == "back left":
+        return Point3D(0.25, -0.5, 0.0)
+    elif location_description == "back right":
+        return Point3D(0.25, 0.5, 0.0)
+    elif location_description == "front middle":
+        return Point3D(0.75, 0.0, 0.0)
+    elif location_description == "front left":
+        return Point3D(0.75, -0.5, 0.0)
     else:
         say(
             f"Location description '{location_description}' not recognized. Defaulting to the center of the workspace."

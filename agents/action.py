@@ -96,8 +96,7 @@ class Actor:
 
         # need function for retrieving other potentially task-relevant skills
         few_shot_examples = self.memory_manager.retrieve_examples(task, num_results=20)
-        skills = []
-        # skills = self.retrieve_task_related_skills_naive(task, num_results=50)
+        skills = self.retrieve_task_related_skills_naive(task, num_results=50)
 
         prompt = actor_prompt(
             task=task, few_shot_examples=few_shot_examples, api=skills
@@ -117,15 +116,20 @@ class Actor:
 
         return code
 
-    def revise_code_with_feedback(self, feedback, is_hint=False):
+    def revise_code_with_feedback(self, feedback):
         """code revision should be different from initial task plan - there should be a different retrieval strategy for this
         for example also finding past examples of how feedback was incorporated into a solution
         """
 
         from prompts.actor import actor_iteration_prompt
 
-        examples = self.skill_parser.apply_task_hint(feedback) if is_hint else []
-        print(examples)
+        examples = []
+        if feedback.startswith("hints:"):
+            hints = feedback.split(":")[1].split(",")
+            examples = self.skill_parser.apply_task_hint(hints)
+        # elif feedback.startswith("skill-hints:"):
+        #     hints = feedback.split(":")[1].split(",")
+        #     skills = self.skill_parser.apply_skill_hint(feedback)
 
         self.messages.append(
             {

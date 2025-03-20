@@ -44,10 +44,10 @@ class CapOptioner:
                     continue
 
                 while True:
-                    skill_tasks = self.memory_manager.skill_task_examples(skill)
-                    print(
-                        f"tested tasks\n {'\n'.join([task.task for task in skill_tasks])}"
-                    )
+                    # skill_tasks = self.memory_manager.skill_task_examples(skill)
+                    # print(
+                    #     f"tested tasks\n {'\n'.join([task.task for task in skill_tasks])}"
+                    # )
                     self.env_agent.parse_task()
 
                     self.attempt_task(skill)
@@ -115,17 +115,18 @@ class CapOptioner:
                     self.memory_manager.add_trace(trace)
 
                     if skill is not None:
-                        failed_task = self.revision_agent.test_modified_skill_on_past_task_examples(
-                            skill, skill_code
-                        )
+                        # skip skill testing for now...
+                        # failed_task = self.revision_agent.test_modified_skill_on_past_task_examples(
+                        #     skill, skill_code
+                        # )
 
-                        # only update the skill if the new skill is successful on all previous tasks
-                        if failed_task:
-                            # TODO: handle this somehow...
-                            print(
-                                "failed to solve prior tasks - aborting commit! continue iterating!"
-                            )
-                            continue
+                        # # only update the skill if the new skill is successful on all previous tasks
+                        # if failed_task:
+                        #     # TODO: handle this somehow...
+                        #     print(
+                        #         "failed to solve prior tasks - aborting commit! continue iterating!"
+                        #     )
+                        #     continue
 
                         skill.code = skill_code
                         skill.add_task_example(task_example)
@@ -147,11 +148,7 @@ class CapOptioner:
                 case _:
                     trace.add_feedback_round(feedback)
                     self.env_agent.reset()
-                    if feedback.startswith("hints:"):
-                        hints = feedback.split(":")[1].split(",")
-                        code = self.actor.revise_code_with_feedback(hints, is_hint=True)
-                    else:
-                        code = self.actor.revise_code_with_feedback(feedback)
+                    code = self.actor.revise_code_with_feedback(feedback)
 
     def extract_task_and_skill_code(self, code) -> tuple[str, str]:
         """given a code string with a function and some flat code, separate the two, and return both"""

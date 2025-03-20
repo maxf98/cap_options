@@ -42,6 +42,9 @@ class EnvironmentAgent:
 
         if env_setup_prompt == "keep":
             return self.current_task
+        elif env_setup_prompt == "none":
+            task = Task()
+            return task
 
         if allow_existing_configs:
             existing_configs = self.memory_manager.retrieve_configs(
