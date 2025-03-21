@@ -1,3 +1,0 @@
-def skillB():
-    """ docstrisng """
-    skillA()

@@ -42,7 +42,7 @@ class PickPlace:
             targ_pose = prepick_pose
             while not ee.detect_contact():  # and target_pose[2] > 0:
                 targ_pose = utils.multiply(targ_pose, delta)
-                timeout |= movep(targ_pose)
+                timeout |= movep(targ_pose, self.speed)
                 if timeout:
                     return True
 
@@ -64,7 +64,7 @@ class PickPlace:
                     if timeout:
                         return True
                 ee.release()
-                timeout |= movep(postplace_pose)
+                timeout |= movep(postplace_pose, self.speed)
 
             # Move to prepick pose if pick is not successful.
             else:

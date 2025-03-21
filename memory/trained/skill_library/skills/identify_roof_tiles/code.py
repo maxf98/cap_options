@@ -7,6 +7,8 @@ def identify_roof_tiles(objects: list[TaskObject]) -> list[TaskObject]:
     - list[TaskObject]: A list of TaskObjects that are identified as roof tiles, based on the specified characteristics.
     """
     roof_tiles = []
+    get_object_color()
+    get_object_size()
     for obj in objects:
         if obj.color.lower() == 'red' and any(dim < 0.02 for dim in obj.size):
             roof_tiles.append(obj)

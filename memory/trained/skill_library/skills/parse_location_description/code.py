@@ -40,7 +40,4 @@ def parse_location_description(location_description: str) -> Point3D:
     elif location_description == "front left":
         return Point3D(0.75, -0.5, 0.0)
     else:
-        say(
-            f"Location description '{location_description}' not recognized. Defaulting to the center of the workspace."
-        )
-        return Point3D(0.5, 0.0, 0.0)
+        raise ValueError(f"Unfamiliar location description: {location_description}")

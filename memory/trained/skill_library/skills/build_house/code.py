@@ -3,7 +3,7 @@ def build_house():
     Assumes all the necessary objects are available in the workspace, and moves them out of the way before building the house.
     """
 
-    objects = get_objects()
+    objects = get_blocks_by_color()
     base_blocks = get_blocks_by_color("yellow")
     if len(base_blocks) != 14:
         raise Exception("Not enough blocks to build the house")

@@ -8,7 +8,7 @@ from utils.core_primitives import (
 
 
 def make_line_with_blocks(
-    blocks: list[TaskObject], start_pose: Pose, gap: float = 0.005
+    blocks: list[TaskObject], start_pose: Pose, axis="y", gap: float = 0.005
 ):
     """Arranges the given blocks in a straight line starting from the specified start pose.
     Args:
@@ -20,14 +20,9 @@ def make_line_with_blocks(
     Note:
         The function places the blocks in the order in which they are passed.
     """
-    current_position = start_pose.position
-    for block in blocks:
+    current_block = blocks[0]
+    put_first_on_second(current_block, start_pose)
+    for block in blocks[1:]:
         # Get the current pose of the block
-        current_pose = get_object_pose(block)
-        block_size = get_object_size(block)
-        # Move the block to the current position
-        put_first_on_second(current_pose, Pose(current_position, start_pose.rotation))
-        # Update the current position for the next block
-        current_position = get_point_at_distance_and_rotation_from_point(
-            current_position, start_pose.rotation, block_size[0] + gap
-        )
+        move_block_next_to_reference(block, current_block, axis=axis)
+        current_block = block

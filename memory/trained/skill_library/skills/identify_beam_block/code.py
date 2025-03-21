@@ -10,6 +10,8 @@ def identify_beam_block(blocks: list[TaskObject]) -> TaskObject:
     TaskObject: Returns the TaskObject identified as a beam block.
     If no beam block is found, returns None.
     """
+    get_object_color()
+    get_object_size()
     for block in blocks:
         if block.color != 'brown':
             continue

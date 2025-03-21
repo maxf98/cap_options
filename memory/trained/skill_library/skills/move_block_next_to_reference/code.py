@@ -1,8 +1,9 @@
 from utils.core_types import *
+import numpy as np
 
 
 def move_block_next_to_reference(
-    block: TaskObject, referenceBlock: TaskObject, axis: str, gap: float = 0.005
+    block: TaskObject, referenceBlock: TaskObject, side: str, gap: float = 0.005
 ):
     """Moves the block next to the referenceBlock such that their edges are aligned along the specified axis with a small gap.
     Args:
@@ -13,6 +14,7 @@ def move_block_next_to_reference(
     Raises:
         ValueError: If the specified axis is not 'x', '-x', 'y', or '-y'.
     """
+    side
     if axis not in ["x", "-x", "y", "-y"]:
         raise ValueError("Axis must be either 'x', '-x', 'y', or '-y'.")
     # Get the pose and size of the blocks
@@ -33,13 +35,10 @@ def move_block_next_to_reference(
     elif axis == "-y":
         offset = (reference_size[1] + block_size[1]) / 2 + gap
         direction = np.array([0, -1, 0])  # negative y-axis direction
-    # Calculate new position using get_point_at_distance_and_rotation_from_point
-    new_position = get_point_at_distance_and_rotation_from_point(
-        reference_pose.position,
-        reference_pose.rotation,
-        distance=offset,
-        direction=direction,
-    )
+
+    rotated_direction = reference_pose.rotation.apply(direction)
+    new_position = reference_pose.position.np_vec + offset * rotated_direction
+    new_position = Point3D.from_xyz(new_position)
     # New pose for the block with the same rotation as the reference
     new_pose = Pose(position=new_position, rotation=reference_pose.rotation)
     # Move the block

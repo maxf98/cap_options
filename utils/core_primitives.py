@@ -17,29 +17,29 @@ IMPORTANT
 - pybullet can only handle one server at a time, if this is not commented out, this is the environment being used
 """
 
-env = Environment(
-    "/Users/maxfest/vscode/thesis/thesis/environments/assets",
-    disp=True,
-    shared_memory=False,
-    hz=480,
-    record_cfg={
-        "save_video": False,
-        "save_video_path": "${data_dir}/${task}-cap/videos/",
-        "add_text": True,
-        "add_task_text": True,
-        "fps": 20,
-        "video_height": 640,
-        "video_width": 720,
-    },
-)
-from tasks.tasks.place_blocks import Place5Blocks
-from environments.grippers import Spatula
+# env = Environment(
+#     "/Users/maxfest/vscode/thesis/thesis/environments/assets",
+#     disp=True,
+#     shared_memory=False,
+#     hz=480,
+#     record_cfg={
+#         "save_video": False,
+#         "save_video_path": "${data_dir}/${task}-cap/videos/",
+#         "add_text": True,
+#         "add_task_text": True,
+#         "fps": 20,
+#         "video_height": 640,
+#         "video_width": 720,
+#     },
+# )
+# from tasks.tasks.place_blocks import Place5Blocks
+# from environments.grippers import Spatula
 
-task = Place5Blocks()
-# task.ee = Spatula
+# task = Place5Blocks()
+# # task.ee = Spatula
 
-env.set_task(task)
-env.reset()
+# env.set_task(task)
+# env.reset()
 """-----------------------------------------------------------------------------"""
 
 __all__ = [

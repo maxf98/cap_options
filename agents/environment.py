@@ -149,4 +149,4 @@ if __name__ == "__main__":
 
     env_agent.reset()
 
-    time.sleep(5)
+    time.sleep(10)
