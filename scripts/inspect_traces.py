@@ -1,5 +1,5 @@
-from agents.skill import Skill, SkillManager
-from agents.experience import AttemptTrace, InteractionTrace, EXPERIENCE_DIR
+from agents.model import Skill, InteractionTrace
+from agents.memory import SkillManager
 import matplotlib.pyplot as plt
 import numpy as np
 import os

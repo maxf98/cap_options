@@ -18,6 +18,8 @@ class EnvironmentAgent:
     for now just a two-pass attempt
     first: retrieve previous configs
     if none chosen, generate new from string
+
+    THE TASK STRING SHOULDN'T BE PART OF THIS! relic of the Cliport repo, and associated Task class...
     """
 
     def __init__(self, memory_manager: MemoryManager):
