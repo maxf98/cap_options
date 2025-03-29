@@ -33,10 +33,8 @@ IMPORTANT
 #     },
 # )
 # from tasks.tasks.place_blocks import Place5Blocks
-# from environments.grippers import Spatula
 
 # task = Place5Blocks()
-# # task.ee = Spatula
 
 # env.set_task(task)
 # env.reset()
@@ -88,25 +86,7 @@ def get_objects() -> list[TaskObject]:
 
 def move_end_effector_to(pose: Pose, speed=0.001):
     """moves the end effector from its current Pose to a given new Pose"""
-    suction_height = 0.05
-    pose0 = _to_pybullet_pose(get_end_effector_pose())
-    pose1 = _to_pybullet_pose(pose)
-    pos0 = np.float32(pose0[0])
-    pos1 = np.float32((pose1[0][0], pose1[0][1], pose1[0][2] + suction_height))
-    vec = np.float32(pos1) - np.float32(pos0)
-    length = np.linalg.norm(vec)
-    vec = vec / length
-    pos0 -= vec * 0.02
-    pos1 -= vec * 0.05
-
-    rot = (pose1[1] + np.pi) % (2 * np.pi) - np.pi
-    timeout = env.movep((pos0, rot))
-
-    n_push = np.int32(np.floor(np.linalg.norm(pos1 - pos0) / 0.01))
-    for _ in range(n_push):
-        target = pos0 + vec * n_push * 0.01
-        timeout |= env.movep((target, rot), speed=speed)
-    timeout |= env.movep((pos1, rot), speed=speed)
+    env.movep(_to_pybullet_pose(pose), speed=speed)
 
 
 def put_first_on_second(pickPose: Pose, placePose: Pose):
@@ -197,5 +177,21 @@ if __name__ == "__main__":
 
     import time
 
-    move_end_effector_to(Pose(Point3D(0.5, 0.5, 0.05)), speed=0.001)
-    move_end_effector_to(Pose(Point3D(0.5, -0.5, 0.05)), speed=0.001)
+    block = get_objects()[0]
+    pose = get_object_pose(block)
+    size = get_object_size(block)
+
+    pos = pose.position.translate(Point3D(0, size[1] + 0.02, 0))
+
+    ee_pose = get_end_effector_pose()
+
+    over_prenudge_pos = Point3D(pos.x, pos.y, ee_pose.position.z)
+    prenudge_pos = Point3D(pos.x, pos.y, pos.z)
+    prenudge_pose = Pose(position=prenudge_pos)
+
+    nudge_pose = Pose(position=pos.translate(Point3D(0, -0.07, 0)))
+    move_end_effector_to(Pose(over_prenudge_pos), speed=0.0001)
+    move_end_effector_to(prenudge_pose, speed=0.0001)
+    move_end_effector_to(nudge_pose, speed=0.0001)
+
+    time.sleep(5)

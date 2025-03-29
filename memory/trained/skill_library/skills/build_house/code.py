@@ -1,3 +1,6 @@
+from utils.core_types import Workspace
+
+
 def build_house():
     """Builds a house in the middle of the workspace.
     Assumes all the necessary objects are available in the workspace, and moves them out of the way before building the house.
@@ -19,26 +22,30 @@ def build_house():
 
     # Move objects out of the way
     # Move base blocks to back edge of workspace
-    back_left = parse_location_description("back left")
+    back_left = Workspace.back_left
     make_line_with_blocks(
         base_blocks, Pose(back_left, Rotation.from_euler("z", np.pi / 2))
     )
 
     # Move roof tiles to right side of workspace
-    back_right = parse_location_description("back right")
+    back_right = Workspace.back_right
     make_line_with_blocks(roof_tiles, Pose(back_right, Rotation.identity()))
 
     # Move roof beam to front edge of workspace
-    front_left = parse_location_description("front left")
+    front_left = Workspace.front_left
     put_first_on_second(
         get_object_pose(roof_beam), Pose(front_left, Rotation.identity())
     )
 
     # Move roof base to middle of the front edge
-    front_middle = parse_location_description("front middle")
+    front_middle = Workspace.front_right
     put_first_on_second(
         get_object_pose(roof_base), Pose(front_middle, Rotation.identity())
     )
+
+    import time
+
+    time.sleep(40)
 
     # Build the house
     middle = parse_location_description("middle")

@@ -108,6 +108,22 @@ class Task(Task):
 
         self.taskObjects.append(task_obj)
 
+    def add_cylinder(self, env: Environment, color: str = "red"):
+        cylinder_size = (0.04, 0.04, 0.01)
+        cylinder_pose = self.get_random_pose(env, cylinder_size)
+        cylinder_urdf = "cylinder/cylinder-template.urdf"
+        cylinder_id = env.add_object(
+            cylinder_urdf, cylinder_pose, color=color, scale=0.5
+        )
+        task_obj = TaskObject(
+            objectType="cylinder",
+            color=color,
+            id=cylinder_id,
+            category="rigid",
+            size=cylinder_size,
+        )
+        self.taskObjects.append(task_obj)
+
     def wait_for_objects_to_settle(self):
         for _ in range(500):
             p.stepSimulation()

@@ -35,5 +35,5 @@ def build_structure_from_blocks(
                 direction=np.array([0, 1, 0]),
             )
             row_start_pose = Pose(row_start_position, layer_start_pose.rotation)
-            make_line_with_blocks(row_blocks, row_start_pose, gap)
+            make_line_with_blocks(row_blocks, row_start_pose, gap=gap)
         block_index += dimensions[0] * dimensions[1]

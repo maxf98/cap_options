@@ -9,7 +9,7 @@ def build_letter_T(blocks: list[TaskObject], starting_pose: Pose):
     Blocks will be arranged to follow a typical layout design for a 'T'.
     """
     # Define the workspace center
-    workspace_center = Point3D((0.25 + 0.75) / 2, 0, starting_pose.position.z)
+    workspace_center = Workspace.middle
     # Build the vertical stem of 'T' consisting of 4 blocks
     initial_pose = Pose(workspace_center, starting_pose.rotation)
     for i in range(4):

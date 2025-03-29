@@ -1,7 +1,9 @@
 from utils.core_types import *
 
 
-def build_block_pyramid(blocks: list[TaskObject], base_dimension: tuple[int, int]):
+def build_block_pyramid(
+    blocks: list[TaskObject], base_dimension: tuple[int, int], pose
+):
     """builds a pyramid of blocks with the given base dimension and pose
     for each layer, reduce the base_dimension by 1 along each axis
     """

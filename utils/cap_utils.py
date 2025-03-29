@@ -13,7 +13,7 @@ import numpy as np
 import itertools
 
 from prompts.actor import bug_fix_prompt
-from utils.llm_utils import query_llm, parse_code_response
+from utils.llm_utils import query_llm, parse_code_response, query_llm_structured
 
 from pydantic import BaseModel
 

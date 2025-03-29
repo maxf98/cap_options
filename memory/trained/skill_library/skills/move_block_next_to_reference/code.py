@@ -3,7 +3,7 @@ import numpy as np
 
 
 def move_block_next_to_reference(
-    block: TaskObject, referenceBlock: TaskObject, side: str, gap: float = 0.005
+    block: TaskObject, referenceBlock: TaskObject, axis: str = "x", gap: float = 0.005
 ):
     """Moves the block next to the referenceBlock such that their edges are aligned along the specified axis with a small gap.
     Args:
@@ -14,7 +14,6 @@ def move_block_next_to_reference(
     Raises:
         ValueError: If the specified axis is not 'x', '-x', 'y', or '-y'.
     """
-    side
     if axis not in ["x", "-x", "y", "-y"]:
         raise ValueError("Axis must be either 'x', '-x', 'y', or '-y'.")
     # Get the pose and size of the blocks

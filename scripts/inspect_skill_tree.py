@@ -8,57 +8,135 @@ import io
 from PIL import Image
 
 
-memory_manager = MemoryManager()
+def make_house_tree():
+    memory_manager = MemoryManager()
 
-#all_skills = memory_manager.skill_manager.all_skills
-build_house = memory_manager.skill_manager.retrieve_skill_with_name("build_house")
-all_skills = memory_manager.skill_manager.resolve_dependencies(build_house.code)
-all_skills.append(build_house)
+    # all_skills = memory_manager.skill_manager.all_skills
+    build_house = memory_manager.skill_manager.retrieve_skill_with_name("build_house")
+    all_skills = memory_manager.skill_manager.resolve_dependencies(build_house.code)
+    all_skills.append(build_house)
 
-for skill in all_skills:
-    print(len(memory_manager.skill_task_examples(skill)))
+    for skill in all_skills:
+        print(len(memory_manager.skill_task_examples(skill)))
 
-skills_with_deps = {}
-for skill in all_skills:
-    deps = memory_manager.skill_manager.get_skill_calls(skill.code, func_names=True)
-    deps = [dep for dep in deps if dep != "get_point_at_distance_and_rotation_from_point"]
-    if skill.name in ["identify_beam_block", "identify_roof_base", "identify_roof_tiles"]:
-        deps.extend(["get_object_color", "get_object_size"])
-    skills_with_deps[skill.name] = deps
+    skills_with_deps = {}
+    for skill in all_skills:
+        deps = memory_manager.skill_manager.get_skill_calls(skill.code, func_names=True)
+        deps = [
+            dep
+            for dep in deps
+            if dep
+            not in [
+                "get_point_at_distance_and_rotation_from_point",
+                "parse_location_description",
+            ]
+        ]
+        if skill.name in [
+            "identify_beam_block",
+            "identify_roof_base",
+            "identify_roof_tiles",
+        ]:
+            deps.extend(["get_object_color", "get_object_size"])
+        skills_with_deps[skill.name] = deps
+
+    G = nx.DiGraph()
+    for parent, children in skills_with_deps.items():
+        for child in children:
+            G.add_edge(parent, child)
+
+    A = to_agraph(G)
+    for node in A.nodes():
+        node.attr["shape"] = "rect"  # use 'rect' or 'box'
+        if node.name in [
+            "get_object_size",
+            "get_object_pose",
+            "get_object_color",
+            "get_bbox",
+            "put_first_on_second",
+            "get_objects",
+        ]:
+            node.attr["style"] = "filled"
+            node.attr["fillcolor"] = "#CAD8E0"
+        elif node.name not in [
+            "place_roof_tiles",
+            "assemble_roof",
+            "identify_beam_block",
+            "identify_roof_base",
+            "identify_roof_tiles",
+            "build_house_base",
+            "build_house",
+            "make_line_of_blocks_next_to",
+        ]:
+            node.attr["style"] = "filled"
+            node.attr["fillcolor"] = "#E4B4AE"
+        else:
+            node.attr["style"] = "filled"
+            node.attr["fillcolor"] = "#F2F2F2"
+
+    A.layout(prog="dot")
+
+    # buf = io.BytesIO()
+    # A.draw(buf, format='png')
+    # buf.seek(0)
+    # img = Image.open(buf)
+
+    A.draw("scripts/graph.png")
+
+    # Display with matplotlib (optional)
+    img = plt.imread("scripts/graph.png")
+
+    # Load image with PIL and show with matplotlib
+    plt.imshow(img)
+    plt.axis("off")
+
+    plt.show()
 
 
-G = nx.DiGraph()
-for parent, children in skills_with_deps.items():
-    for child in children:
-        G.add_edge(parent, child)
+def make_line_tree():
+    skills_with_deps = {
+        "make_line_with_blocks": ["move_block_next_to_reference"],
+        "move_block_next_to_reference": [
+            "put_first_on_second",
+            "get_object_size",
+            "get_object_pose",
+        ],
+    }
+    G = nx.DiGraph()
+    for parent, children in skills_with_deps.items():
+        for child in children:
+            G.add_edge(parent, child)
 
-A = to_agraph(G)
-for node in A.nodes():
-    node.attr['shape'] = 'rect'  # use 'rect' or 'box'
-    if node.name in ["get_object_size", "get_object_pose", "get_object_color", "get_bbox", "put_first_on_second", "get_objects"]:
-        node.attr['style'] = 'filled'
-        node.attr['fillcolor'] = '#CAD8E0'
-    else:
-        node.attr['style'] = 'filled'
-        node.attr['fillcolor'] = '#F2F2F2'
-A.layout(prog='dot')
+    A = to_agraph(G)
+    for node in A.nodes():
+        node.attr["shape"] = "rect"  # use 'rect' or 'box'
+        if node.name in [
+            "get_object_size",
+            "get_object_pose",
+            "get_object_color",
+            "get_bbox",
+            "put_first_on_second",
+            "get_objects",
+        ]:
+            node.attr["style"] = "filled"
+            node.attr["fillcolor"] = "#CAD8E0"
+        else:
+            node.attr["style"] = "filled"
+            node.attr["fillcolor"] = "#F2F2F2"
 
-# buf = io.BytesIO()
-# A.draw(buf, format='png')
-# buf.seek(0)
-# img = Image.open(buf)
+    A.layout(prog="dot")
 
-A.draw('scripts/graph.png')
+    save_dir = "scripts/line_tree.png"
+    A.draw(save_dir)
+    img = plt.imread(save_dir)
 
-# Display with matplotlib (optional)
-img = plt.imread('scripts/graph.png')
+    # Load image with PIL and show with matplotlib
+    plt.imshow(img)
+    plt.axis("off")
 
-# Load image with PIL and show with matplotlib
-plt.imshow(img)
-plt.axis('off')
+    plt.show()
 
-plt.show()
 
+make_house_tree()
 
 # core_primitives = [skill.name for skill in all_skills if skill.is_core_primitive]
 # node_colors = [

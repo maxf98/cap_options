@@ -131,3 +131,8 @@ class Workspace:
     """
 
     bounds = np.array([[0.25, 0.75], [-0.5, 0.5], [0, 0.3]])
+    back_left = Point3D(0.25, -0.5, 0)
+    back_right = Point3D(0.25, 0.5, 0)
+    front_left = Point3D(0.75, -0.5, 0)
+    front_right = Point3D(0.75, 0.5, 0)
+    middle = Point3D(0.5, 0, 0)

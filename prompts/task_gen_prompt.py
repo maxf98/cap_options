@@ -1,6 +1,6 @@
 from prompts.prompt_utils import get_core_types_text
 
-# should also automate this, but we need to prototype rn...
+# should also automate this, but we need to prototype...
 task_setup_api_string = """
 def add_block(
         self,
@@ -24,6 +24,10 @@ def add_zone(
 \"\"\" adds a zone of a given size and color to the environment
 If the pose is left unspecified, a random pose in the workspace is selected
  \"\"\"
+
+
+def add_cylinder(self, env: Environment, color: str = "red"):
+
 """
 
 
