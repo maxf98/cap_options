@@ -70,3 +70,47 @@ def skill_learning_prompt(
     ----------------------------------------------------------------
     Implement the function and solve the task, while trying to ensure that prior tasks remain solvable.
     """
+
+
+def actor_iteration_prompt(feedback, examples: list[TaskExample] = []):
+    return f"""
+    Rewrite the previous code to integrate the feedback: {feedback}.
+    {get_few_shot_examples_string(examples)}
+    Only make changes that take into account this feedback. 
+    """
+
+
+def get_skill_string(skills: list[Skill]):
+    if len(skills) == 0:
+        return ""
+    return f""" 
+    ---------------------------------------------------------------
+    The following skills may be useful in your implementation:
+    {"\n".join([skill.description for skill in skills])}
+    ---------------------------------------------------------------
+    """
+
+
+def get_few_shot_examples_string(examples: list[TaskExample]):
+    if len(examples) == 0:
+        return ""
+    out = "The following examples of previously solved tasks may help:\n"
+    for example in examples:
+        out += f"TASK: {example.task} \n CODE: {example.code} \n\n"
+    return f"""
+    ---------------------------------------------------------------
+    {out}
+    ---------------------------------------------------------------
+    """
+
+
+def bug_fix_prompt(code, traceback):
+    return f"""
+    The following code contains an error: 
+    {code}
+    
+    The error traceback is: 
+    {traceback}
+    
+    Please fix the error.
+    """

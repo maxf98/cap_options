@@ -96,7 +96,7 @@ class Actor:
 
         # need function for retrieving other potentially task-relevant skills
         few_shot_examples = self.memory_manager.retrieve_examples(task, num_results=20)
-        skills = self.retrieve_task_related_skills_naive(task, num_results=50)
+        skills = self.retrieve_task_related_skills(task, num_results=10)
 
         prompt = actor_prompt(
             task=task, few_shot_examples=few_shot_examples, api=skills

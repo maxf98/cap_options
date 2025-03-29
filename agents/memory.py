@@ -289,10 +289,12 @@ class ConfigManager:
 
     def generate_final_config_description(self, task):
         """e.g. build a jenga tower"""
-        from prompts.config import generate_config_description
+        # from prompts.config import generate_config_description
 
-        messages = [{"role": "user", "content": generate_config_description(task)}]
-        description = query_llm(messages)
+        # messages = [{"role": "user", "content": generate_config_description(task)}]
+        # description = query_llm(messages)
+        # THIS DIDN'T WORK AT ALL - just ask the user...
+        description = input("give a description of the config to be stored...")
         return description
 
     def retrieve_config_with_id(self, id) -> EnvironmentConfiguration:
