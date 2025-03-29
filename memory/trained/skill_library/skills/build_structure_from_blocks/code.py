@@ -1,8 +1,10 @@
+from utils.core_types import *
+
+
 def build_structure_from_blocks(
     blocks: list[TaskObject],
     dimensions: tuple[int, int, int],
     pose: Pose,
-    gap: float = 0.005,
 ):
     """
     Assembles a structure using individual block TaskObjects based on the specified dimensions and the given pose.
