@@ -1,5 +1,5 @@
 from utils.cap_utils import cap_code_exec
-from tasks.task import Task
+from utils.task_and_store import Task
 from agents.model import EnvironmentConfiguration
 from environments.environment import Environment
 

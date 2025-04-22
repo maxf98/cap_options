@@ -13,8 +13,8 @@ class TaskExample:
         self,
         task: str,
         code: str,
-        initial_config: EnvironmentConfiguration,
-        final_config: EnvironmentConfiguration,
+        initial_config: EnvironmentConfiguration=None,
+        final_config: EnvironmentConfiguration=None,
         skill_code: str = None,
     ):
         self.id = uuid.uuid4()

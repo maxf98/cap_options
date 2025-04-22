@@ -15,11 +15,6 @@ class SkillParser:
         self.memory_manager = memory_manager
         self.messages = []
 
-    def parse_skill_dummy(self) -> Skill:
-        return Skill.parse_function_string(
-            "def place_block_next_to_another(block, otherBlock):\n   pass"
-        )
-
     def parse_skill(self) -> Skill:
         skill_prompt = input("what skill would you like to learn?")
         skill = self.check_for_existing_similar_skills(skill_prompt)

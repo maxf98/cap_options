@@ -39,7 +39,7 @@ class Actor:
         means we are both writing the skill code and the actual task-specific code
         """
 
-        from prompts.skill import (
+        from prompts.skill_learning import (
             actor_skill_learning_system_prompt,
             skill_learning_prompt,
         )

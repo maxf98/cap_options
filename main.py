@@ -1,4 +1,4 @@
-from agents.memory import MemoryManager
+from agents.memory import MemoryManager, SkillManager, ExamplesManager
 from agents.action import Actor
 from agents.environment import EnvironmentAgent
 from agents.revision import RevisionAgent
@@ -6,7 +6,7 @@ from agents.skill_parser import SkillParser
 
 from agents.model import Skill, TaskExample, InteractionTrace
 
-from tasks.task import Task
+from utils.task_and_store import Task
 
 from utils.cap_utils import (
     get_non_function_code,
@@ -29,6 +29,7 @@ class CapOptioner:
             memory_manager=self.memory_manager,
             env_agent=self.env_agent,
         )
+
 
     def run(self):
         while True:
@@ -162,40 +163,8 @@ class CapOptioner:
         return task_code, skill_code
 
 
-# def reset_skill_library():
-#     """for some reason we need to do this in the root file, otherwise something doesn't work with pickling"""
-#     skill_manager = SkillManager()
-#     SkillManager.delete_skill_library()
-#     skill_manager = SkillManager()
-#     skill_manager.add_core_primitives_to_library()
-
-
-def refresh_core_primitives():
-    """update core primitives after a change to the file - this will remove trace_ids, but we can retrieve them later..."""
-    from agents.memory import SkillManager
-
-    skill_manager = SkillManager(MEMORY_DIR="memory/trained")
-    skill_manager.add_core_primitives_to_library()
-
-
-# def delete_examples_that_use_skill(name: str):
-#     example_manager = ExamplesManager()
-#     examples = example_manager.all_examples
-#     for example in examples:
-#         calls = get_calls(example.code)
-#         print(calls)
-#         if name in calls:
-#             example_manager.delete_example(example)
-
 
 if __name__ == "__main__":
-    # refresh_core_primitives()
     agent = CapOptioner()
     agent.run()
-    # refresh_core_primitives()
-    # reset_skill_library()
-    # skill_manager = SkillManager()
-    # skill_manager.delete_skill("build_cube_from_blocks")
-    # delete_examples_that_use_skill("build_cube_from_blocks")
-    # example_manager = ExamplesManager()
-    # example_manager.delete_examples_wo_file()
+

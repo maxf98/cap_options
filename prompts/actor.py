@@ -5,22 +5,18 @@ from agents.model.example import TaskExample
 
 actor_system_prompt = f"""
 You write python code to control a robotic arm in a simulated environment, building on an existing API. 
-We are trying to learn skills, and are using different tasks to test and effectively learn a specific skill. 
 
 You will be given:
 - a task for the robotic agent to solve
 - api functions you may use to solve the task
 - if available, examples of codes that solve prior similar tasks
-- if applicable, already written code, that you should extend
 
 You are supposed to write flat code to solve the task, i.e. do not write any functions. 
 DO NOT make any imports.
 
 Adhere to the following basic types:
 {get_core_types_text()}
-
 """
-
 
 def actor_prompt(task, few_shot_examples: list[TaskExample], api: list[Skill]):
     return f"""
@@ -31,7 +27,6 @@ def actor_prompt(task, few_shot_examples: list[TaskExample], api: list[Skill]):
 
     Write flat code to solve the task.
     """
-
 
 def actor_iteration_prompt(feedback, examples: list[TaskExample] = []):
     return f"""

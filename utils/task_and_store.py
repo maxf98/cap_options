@@ -108,7 +108,7 @@ class Task(Task):
 
         self.taskObjects.append(task_obj)
 
-    def add_cylinder(self, env: Environment, color: str = "red"):
+    def add_cylinder(self, env: Environment, color: str = "red", scale=0.5):
         cylinder_size = (0.04, 0.04, 0.01)
         cylinder_pose = self.get_random_pose(env, cylinder_size)
         cylinder_urdf = "cylinder/cylinder-template.urdf"
@@ -120,7 +120,7 @@ class Task(Task):
             color=color,
             id=cylinder_id,
             category="rigid",
-            size=cylinder_size,
+            size=cylinder_size * scale,
         )
         self.taskObjects.append(task_obj)
 

@@ -26,8 +26,8 @@ If the pose is left unspecified, a random pose in the workspace is selected
  \"\"\"
 
 
-def add_cylinder(self, env: Environment, color: str = "red"):
-
+def add_cylinder(self, env: Environment, color: str = "red", scale: float = 0.5):
+\"\"\" adds a cylinder of a given scale and color to the environment \"\"\"
 """
 
 

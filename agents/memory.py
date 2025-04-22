@@ -18,16 +18,32 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
 
 
 class MemoryManager:
-    def __init__(self, root_dir="/Users/maxfest/vscode/thesis/thesis/memory/trained"):
-        os.makedirs(root_dir, exist_ok=True)
+    def __init__(self, root_dir):
+        should_init_memory = False
+        if not os.path.isdir(root_dir):
+            os.makedirs(root_dir, exist_ok=True)
+            should_init_memory = True
+
         self.skill_manager = SkillManager(root_dir)
         self.config_manager = ConfigManager(root_dir)
         self.example_manager = ExamplesManager(
             root_dir, config_manager=self.config_manager
         )
 
+        if should_init_memory:
+            self.init_examples_and_skills()
+
         self.EXPERIENCE_DIR = os.path.join(root_dir, "trajectories")
         os.makedirs(self.EXPERIENCE_DIR, exist_ok=True)
+
+    def init_examples_and_skills(self):
+        self.skill_manager.add_core_primitives_to_library()
+        from utils.base_examples import base_task_examples
+
+        examples = base_task_examples()
+        for example in examples:
+            print(f"adding example: {example.task}")
+            self.add_example(example)
 
     def add_skill(self, skill: Skill):
         self.skill_manager.add_skill_to_library(skill)
@@ -93,18 +109,11 @@ class SkillManager:
 
         # check if there are any skills which have not been added to the vector db and if so add them (to enable manual adding of skills)
         for skill_name in all_skills:
-            if skill_name not in stored_skills:
+            if skill_name not in stored_skills and not skill_name.startswith("."):
                 with open(f"{self.SKILL_DIR}/{skill_name}/code.py", "r") as file:
                     code = file.read()
                 skill = Skill.parse_function_string(code)
                 self.add_skill_to_library(skill)
-
-    @staticmethod
-    def delete_skill_library(dir):
-        try:
-            shutil.rmtree(dir)
-        except Exception as e:
-            print(f"an error occurred {e}")
 
     def add_core_primitives_to_library(self):
         # only for retrieval purposes... functions are still actually called from core_primitives module
