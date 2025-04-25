@@ -23,6 +23,8 @@ class EnvironmentAgent:
     """
 
     def __init__(self, memory_manager: MemoryManager):
+        self.is_recording = False
+
         self.current_task = Task()
         self.setup_environment()
         self.reset()
@@ -80,16 +82,20 @@ class EnvironmentAgent:
         return task
 
     def setup_environment(self):
+        from pathlib import Path
+        from datetime import datetime
+
+        video_save_dir = Path(__file__).parent.parent / "data"
         env = Environment(
             "/Users/maxfest/vscode/thesis/thesis/environments/assets",
             disp=True,
             shared_memory=False,
             hz=480,
             record_cfg={
-                "save_video": False,
-                "save_video_path": "${data_dir}/${task}-cap/videos/",
-                "add_text": True,
-                "add_task_text": True,
+                "save_video": self.is_recording,
+                "save_video_path": video_save_dir,
+                "add_text": False,
+                "add_task_text": False,
                 "fps": 20,
                 "video_height": 640,
                 "video_width": 720,
@@ -103,10 +109,18 @@ class EnvironmentAgent:
         self.env.reset()
         config = self.get_current_config()
         self.config_stack = [config]
+
+        if self.is_recording:
+            from datetime import datetime
+
+            video_file_name = datetime.now().strftime("%d_%H-%M-%S")
+            self.env.start_rec(video_file_name)
+
         return config
 
     def pop_config(self) -> EnvironmentConfiguration:
         # resets to last config so agent can try again from there
+        # UNUSED - NOT SET UP YET - but would definitely be a useful function...
         config = self.configs[-1]
         self.set_to_task_and_config(self.current_task.lang_goal, config)
 
@@ -119,9 +133,6 @@ class EnvironmentAgent:
         reset_task.lang_goal = task
         self.current_task = reset_task
         self.reset()
-
-    def restore_task_from_example(self, task: TaskExample):
-        self.current_task = task
 
     def set_task(self, task: Task):
         self.current_task = task
@@ -146,7 +157,7 @@ self.add_block(env, "blue")
 if __name__ == "__main__":
     import time
 
-    env_agent = EnvironmentAgent(MemoryManager())
+    env_agent = EnvironmentAgent(MemoryManager(root_dir="memory/memory"))
 
     env_agent.parse_task()
 

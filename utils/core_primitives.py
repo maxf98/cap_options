@@ -48,6 +48,7 @@ __all__ = [
     "put_first_on_second",
     "move_end_effector_to",
     "get_bbox",
+    "get_point_at_distance_and_rotation_from_point",
 ]
 
 
@@ -60,8 +61,10 @@ def get_object_size(task_object: TaskObject) -> tuple[float, float, float]:
     """Returns the size of the given TaskObject as a tuple (width, depth, height)."""
     return task_object.size
 
+
 def get_object_color(task_object: TaskObject) -> str:
     return task_object.color
+
 
 def get_end_effector_pose() -> Pose:
     """gets the current pose of the end effector"""

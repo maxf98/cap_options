@@ -1,4 +1,4 @@
-from agents.memory import MemoryManager, SkillManager, ExamplesManager
+from agents.memory import MemoryManager
 from agents.action import Actor
 from agents.environment import EnvironmentAgent
 from agents.revision import RevisionAgent
@@ -29,7 +29,6 @@ class CapOptioner:
             memory_manager=self.memory_manager,
             env_agent=self.env_agent,
         )
-
 
     def run(self):
         while True:
@@ -78,6 +77,7 @@ class CapOptioner:
                 else self.actor.attempt_task(self.env_agent.env, task)
             )
 
+        # first attempt at solving the task prior to allowing user corrections
         code = get_initial_code()
 
         while True:
@@ -162,9 +162,17 @@ class CapOptioner:
 
         return task_code, skill_code
 
+    def run_past_example(self):
+        example_string = input("give a task:")
+        example = self.memory_manager.retrieve_examples(example_string, num_results=5)
+        print(f"examples\n {'\n'.join([example.task for example in example])}")
+        example_index = input("choose an example by typing its index")
+        example = example[int(example_index)]
+        self.env_agent.set_to_task_and_config(example.task, example.initial_config)
+        self.actor.run_code_str(self.env_agent.env, example.code)
 
 
 if __name__ == "__main__":
     agent = CapOptioner()
     agent.run()
-
+    # agent.run_past_example()

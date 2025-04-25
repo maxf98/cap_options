@@ -33,27 +33,3 @@ def make_smiley_face():
     circle_center_pose = center_of_workspace.translate(Point3D(0, 0, 0))
     # Use remaining blocks (cubic) to form a circular pattern around the smiley face
     arrange_blocks_in_circle(blocks, circle_center_pose, radius)
-
-
-import get_objects, Pose, Workspace, Rotation, place_smiley_face_features, arrange_blocks_in_circle
-import cylinders, mouth_block, smiley_center_pose, blocks
-
-
-def make_smiley_face():
-    """
-    Arranges blocks in the workspace to form a basic smiley face pattern in the middle of the workspace.
-    The smiley face consists of eyes, a mouth, and a circle around it.
-    Note:
-    This function builds the smiley face in a predefined formation in the middle of the workspace,
-    ensuring no parameter variance or additional configuration is required.
-    """
-    # Collect objects and get middle of workspace (omitted for brevity)
-    # ...
-    # Place the eyes and mouth in a triangular pattern
-    place_smiley_face_features(
-        cylinders[0], cylinders[1], mouth_block, smiley_center_pose
-    )
-    # Define a smaller radius for the surrounding circle
-    radius = 0.15
-    # Use remaining blocks (cubic) to form a circular pattern around the smiley face
-    arrange_blocks_in_circle(blocks, smiley_center_pose, radius)

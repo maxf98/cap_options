@@ -5,7 +5,6 @@ def build_house():
     """Builds a house in the middle of the workspace.
     Assumes all the necessary objects are available in the workspace, and moves them out of the way before building the house.
     """
-
     objects = get_blocks_by_color()
     base_blocks = get_blocks_by_color("yellow")
     if len(base_blocks) != 14:
@@ -38,17 +37,13 @@ def build_house():
     )
 
     # Move roof base to middle of the front edge
-    front_middle = Workspace.front_right
+    front_middle = Point3D(Workspace.front_left.x, Workspace.middle.y, 0)
     put_first_on_second(
         get_object_pose(roof_base), Pose(front_middle, Rotation.identity())
     )
 
-    import time
-
-    time.sleep(40)
-
     # Build the house
-    middle = parse_location_description("middle")
+    middle = Workspace.middle
     build_house_base(base_blocks, Pose(middle, Rotation.identity()))
 
     assemble_roof(roof_base, roof_beam, roof_tiles, Pose(middle, Rotation.identity()))

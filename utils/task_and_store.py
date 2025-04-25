@@ -120,7 +120,11 @@ class Task(Task):
             color=color,
             id=cylinder_id,
             category="rigid",
-            size=cylinder_size * scale,
+            size=(
+                cylinder_size[0] * scale,
+                cylinder_size[1] * scale,
+                cylinder_size[2] * scale,
+            ),
         )
         self.taskObjects.append(task_obj)
 

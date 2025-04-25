@@ -385,11 +385,12 @@ class ExamplesManager:
     def save_dir(self, example_id):
         return f"{self.EXAMPLE_DIR}/{example_id}"
 
-    def retrieve_task_with_id(self, id) -> "TaskExample":
-        if id not in os.listdir(self.EXAMPLE_DIR):
+    def retrieve_task_with_id(self, id) -> TaskExample:
+        pkl_path = f"{self.EXAMPLE_DIR}/{id}/example.pkl"
+        if not os.path.exists(pkl_path):
             return None
 
-        with open(f"{self.EXAMPLE_DIR}/{id}/example.pkl", "rb") as file:
+        with open(pkl_path, "rb") as file:
             example = pickle.load(file)
 
         return example

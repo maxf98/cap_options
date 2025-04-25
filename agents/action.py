@@ -148,23 +148,39 @@ class Actor:
         self.last_code_str = code
         self.messages.append({"role": "assistant", "content": self.last_code_str})
         print_code(code)
+        dependencies = self.memory_manager.skill_manager.resolve_dependencies(
+            self.last_code_str
+        )
         new_lvars = cap_code_exec(
             code,
             self.env,
-            self.memory_manager.skill_manager.resolve_dependencies(self.last_code_str),
+            dependencies,
             self.lvars,
         )
         return code
 
     def run_last_code_str(self):
         """just run the last piece of code again"""
+        dependencies = self.memory_manager.skill_manager.resolve_dependencies(
+            self.last_code_str
+        )
         cap_code_exec(
             self.last_code_str,
             self.env,
-            self.memory_manager.skill_manager.resolve_dependencies(self.last_code_str),
+            dependencies,
             self.lvars,
         )
         return self.last_code_str
+
+    def run_code_str(self, env, code):
+        """run a given piece"""
+        dependencies = self.memory_manager.skill_manager.resolve_dependencies(code)
+        cap_code_exec(
+            code,
+            env,
+            dependencies,
+            self.lvars,
+        )
 
     def generated_subtask_based_retrieval(self, task) -> list[Skill]:
         # generate a plan by decomposing the task into subtasks, and then retrieving a skill for each subtask

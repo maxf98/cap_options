@@ -568,14 +568,14 @@ class Environment(gym.Env):
             format="FFMPEG",
             codec="h264",
         )
-        p.setRealTimeSimulation(False)
+        # p.setRealTimeSimulation(False)
         self.save_video = True
 
     def end_rec(self):
         if hasattr(self, "video_writer"):
             self.video_writer.close()
 
-        p.setRealTimeSimulation(True)
+        # p.setRealTimeSimulation(True)
         self.save_video = False
 
     def add_video_frame(self):
