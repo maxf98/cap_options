@@ -1,6 +1,6 @@
 ## CaP-Options
 
-Builds on the Cliport repo and accompanying Ravens benchmark, we removed a lot of code, but there's still a lot of unused code left from it, mostly in the environments folder and in utils.
+Builds on the Cliport repo and accompanying Ravens benchmark, we removed a lot of code, but there's still a lot of unused code left from it, in the environments folder and in utils.
 
 Interaction is structured as follows:
 
@@ -14,3 +14,9 @@ The core type for Point3D was probably a mistake, might make sense to refactor t
 TaskObject class was similarly introduced for typing/clarity, but needs to be adopted in utils.task_and_store to enable use of assets that aren't blocks, cylinders or zones
 
 EnvironmentConfig storing currently not active, but implemented
+
+There's only a small number of dependencies, so you should be fine to install them consecutively.
+
+You will need an OpenAI API key to run experiments.
+
+An agent with some pre-existing skills is in memory/trained, and the baseline agent is in memory/memory.
