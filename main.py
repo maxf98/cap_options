@@ -17,7 +17,7 @@ from utils.cap_utils import (
 class CapOptioner:
 
     def __init__(self):
-        MEMORY_DIR = "memory/trained"
+        MEMORY_DIR = "memory/memory"
 
         self.memory_manager = MemoryManager(MEMORY_DIR)
         self.env_agent = EnvironmentAgent(memory_manager=self.memory_manager)
